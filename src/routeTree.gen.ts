@@ -9,38 +9,152 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ProyectosRouteImport } from './routes/proyectos'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ProyectosIdRouteImport } from './routes/proyectos.$id'
+import { Route as ProyectosIdIndexRouteImport } from './routes/proyectos.$id.index'
+import { Route as ProyectosIdSugerenciasRouteImport } from './routes/proyectos.$id.sugerencias'
+import { Route as ProyectosIdPiezasRouteImport } from './routes/proyectos.$id.piezas'
+import { Route as ProyectosIdParrillaRouteImport } from './routes/proyectos.$id.parrilla'
+import { Route as ProyectosIdEvaluacionRouteImport } from './routes/proyectos.$id.evaluacion'
 
+const ProyectosRoute = ProyectosRouteImport.update({
+  id: '/proyectos',
+  path: '/proyectos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProyectosIdRoute = ProyectosIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ProyectosRoute,
+} as any)
+const ProyectosIdIndexRoute = ProyectosIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
+const ProyectosIdSugerenciasRoute = ProyectosIdSugerenciasRouteImport.update({
+  id: '/sugerencias',
+  path: '/sugerencias',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
+const ProyectosIdPiezasRoute = ProyectosIdPiezasRouteImport.update({
+  id: '/piezas',
+  path: '/piezas',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
+const ProyectosIdParrillaRoute = ProyectosIdParrillaRouteImport.update({
+  id: '/parrilla',
+  path: '/parrilla',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
+const ProyectosIdEvaluacionRoute = ProyectosIdEvaluacionRouteImport.update({
+  id: '/evaluacion',
+  path: '/evaluacion',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/proyectos': typeof ProyectosRouteWithChildren
+  '/proyectos/$id': typeof ProyectosIdRouteWithChildren
+  '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
+  '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
+  '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
+  '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
+  '/proyectos/$id/': typeof ProyectosIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/proyectos': typeof ProyectosRouteWithChildren
+  '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
+  '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
+  '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
+  '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
+  '/proyectos/$id': typeof ProyectosIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/proyectos': typeof ProyectosRouteWithChildren
+  '/proyectos/$id': typeof ProyectosIdRouteWithChildren
+  '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
+  '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
+  '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
+  '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
+  '/proyectos/$id/': typeof ProyectosIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/proyectos'
+    | '/proyectos/$id'
+    | '/proyectos/$id/evaluacion'
+    | '/proyectos/$id/parrilla'
+    | '/proyectos/$id/piezas'
+    | '/proyectos/$id/sugerencias'
+    | '/proyectos/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/login'
+    | '/proyectos'
+    | '/proyectos/$id/evaluacion'
+    | '/proyectos/$id/parrilla'
+    | '/proyectos/$id/piezas'
+    | '/proyectos/$id/sugerencias'
+    | '/proyectos/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/login'
+    | '/proyectos'
+    | '/proyectos/$id'
+    | '/proyectos/$id/evaluacion'
+    | '/proyectos/$id/parrilla'
+    | '/proyectos/$id/piezas'
+    | '/proyectos/$id/sugerencias'
+    | '/proyectos/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  LoginRoute: typeof LoginRoute
+  ProyectosRoute: typeof ProyectosRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/proyectos': {
+      id: '/proyectos'
+      path: '/proyectos'
+      fullPath: '/proyectos'
+      preLoaderRoute: typeof ProyectosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +162,88 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/proyectos/$id': {
+      id: '/proyectos/$id'
+      path: '/$id'
+      fullPath: '/proyectos/$id'
+      preLoaderRoute: typeof ProyectosIdRouteImport
+      parentRoute: typeof ProyectosRoute
+    }
+    '/proyectos/$id/': {
+      id: '/proyectos/$id/'
+      path: '/'
+      fullPath: '/proyectos/$id/'
+      preLoaderRoute: typeof ProyectosIdIndexRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
+    '/proyectos/$id/sugerencias': {
+      id: '/proyectos/$id/sugerencias'
+      path: '/sugerencias'
+      fullPath: '/proyectos/$id/sugerencias'
+      preLoaderRoute: typeof ProyectosIdSugerenciasRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
+    '/proyectos/$id/piezas': {
+      id: '/proyectos/$id/piezas'
+      path: '/piezas'
+      fullPath: '/proyectos/$id/piezas'
+      preLoaderRoute: typeof ProyectosIdPiezasRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
+    '/proyectos/$id/parrilla': {
+      id: '/proyectos/$id/parrilla'
+      path: '/parrilla'
+      fullPath: '/proyectos/$id/parrilla'
+      preLoaderRoute: typeof ProyectosIdParrillaRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
+    '/proyectos/$id/evaluacion': {
+      id: '/proyectos/$id/evaluacion'
+      path: '/evaluacion'
+      fullPath: '/proyectos/$id/evaluacion'
+      preLoaderRoute: typeof ProyectosIdEvaluacionRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
   }
 }
 
+interface ProyectosIdRouteChildren {
+  ProyectosIdEvaluacionRoute: typeof ProyectosIdEvaluacionRoute
+  ProyectosIdParrillaRoute: typeof ProyectosIdParrillaRoute
+  ProyectosIdPiezasRoute: typeof ProyectosIdPiezasRoute
+  ProyectosIdSugerenciasRoute: typeof ProyectosIdSugerenciasRoute
+  ProyectosIdIndexRoute: typeof ProyectosIdIndexRoute
+}
+
+const ProyectosIdRouteChildren: ProyectosIdRouteChildren = {
+  ProyectosIdEvaluacionRoute: ProyectosIdEvaluacionRoute,
+  ProyectosIdParrillaRoute: ProyectosIdParrillaRoute,
+  ProyectosIdPiezasRoute: ProyectosIdPiezasRoute,
+  ProyectosIdSugerenciasRoute: ProyectosIdSugerenciasRoute,
+  ProyectosIdIndexRoute: ProyectosIdIndexRoute,
+}
+
+const ProyectosIdRouteWithChildren = ProyectosIdRoute._addFileChildren(
+  ProyectosIdRouteChildren,
+)
+
+interface ProyectosRouteChildren {
+  ProyectosIdRoute: typeof ProyectosIdRouteWithChildren
+}
+
+const ProyectosRouteChildren: ProyectosRouteChildren = {
+  ProyectosIdRoute: ProyectosIdRouteWithChildren,
+}
+
+const ProyectosRouteWithChildren = ProyectosRoute._addFileChildren(
+  ProyectosRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  LoginRoute: LoginRoute,
+  ProyectosRoute: ProyectosRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

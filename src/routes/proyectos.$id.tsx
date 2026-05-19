@@ -70,12 +70,13 @@ function ProyectoLayout() {
 
           <nav className="flex gap-1 mt-6 -mb-px">
             {tabs.map((t) => {
-              const active = isActive(t.match);
+              const active = isActive(t.key);
               const Icon = t.icon;
               return (
                 <Link
                   key={t.to}
                   to={t.to}
+                  params={{ id }}
                   className={`px-4 py-2.5 text-sm font-medium border-b-2 transition flex items-center gap-2 ${
                     active
                       ? "border-primary text-foreground"

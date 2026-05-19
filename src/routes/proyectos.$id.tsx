@@ -34,13 +34,13 @@ function ProyectoLayout() {
 
   const path = location.pathname;
   const tabs = [
-    { to: `/proyectos/${id}/parrilla`, label: "Parrilla", icon: Calendar, match: ["/parrilla", `/proyectos/${id}`] },
-    { to: `/proyectos/${id}/piezas`, label: "Piezas", icon: LayoutGrid, match: ["/piezas"] },
+    { to: "/proyectos/$id/parrilla" as const, label: "Parrilla", icon: Calendar, key: "parrilla" },
+    { to: "/proyectos/$id/piezas" as const, label: "Piezas", icon: LayoutGrid, key: "piezas" },
   ];
 
-  const isActive = (m: string[]) => {
-    if (path === `/proyectos/${id}` || path === `/proyectos/${id}/`) return m.includes(`/proyectos/${id}`);
-    return m.some((x) => path.endsWith(x));
+  const isActive = (key: string) => {
+    if (key === "parrilla") return path.endsWith("/parrilla") || path === `/proyectos/${id}` || path === `/proyectos/${id}/` || path.endsWith("/evaluacion") || path.endsWith("/sugerencias");
+    return path.endsWith(`/${key}`);
   };
 
   return (

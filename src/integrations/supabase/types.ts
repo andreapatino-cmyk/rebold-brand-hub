@@ -14,7 +14,227 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      evaluaciones: {
+        Row: {
+          created_at: string
+          criterios: Json
+          id: string
+          parrilla_id: string
+          puntuacion_global: number
+          sugerencias: Json
+        }
+        Insert: {
+          created_at?: string
+          criterios?: Json
+          id?: string
+          parrilla_id: string
+          puntuacion_global?: number
+          sugerencias?: Json
+        }
+        Update: {
+          created_at?: string
+          criterios?: Json
+          id?: string
+          parrilla_id?: string
+          puntuacion_global?: number
+          sugerencias?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluaciones_parrilla_id_fkey"
+            columns: ["parrilla_id"]
+            isOneToOne: false
+            referencedRelation: "parrillas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback: {
+        Row: {
+          contenido: string
+          created_at: string
+          evaluacion_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          contenido: string
+          created_at?: string
+          evaluacion_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          contenido?: string
+          created_at?: string
+          evaluacion_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feedback_evaluacion_id_fkey"
+            columns: ["evaluacion_id"]
+            isOneToOne: false
+            referencedRelation: "evaluaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      memoria_cliente: {
+        Row: {
+          clave: string
+          created_at: string
+          id: string
+          proyecto_id: string
+          valor: string | null
+        }
+        Insert: {
+          clave: string
+          created_at?: string
+          id?: string
+          proyecto_id: string
+          valor?: string | null
+        }
+        Update: {
+          clave?: string
+          created_at?: string
+          id?: string
+          proyecto_id?: string
+          valor?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "memoria_cliente_proyecto_id_fkey"
+            columns: ["proyecto_id"]
+            isOneToOne: false
+            referencedRelation: "proyectos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parrillas: {
+        Row: {
+          anio: number
+          created_at: string
+          estado: string
+          id: string
+          mes: number
+          proyecto_id: string
+        }
+        Insert: {
+          anio: number
+          created_at?: string
+          estado?: string
+          id?: string
+          mes: number
+          proyecto_id: string
+        }
+        Update: {
+          anio?: number
+          created_at?: string
+          estado?: string
+          id?: string
+          mes?: number
+          proyecto_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parrillas_proyecto_id_fkey"
+            columns: ["proyecto_id"]
+            isOneToOne: false
+            referencedRelation: "proyectos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proyectos: {
+        Row: {
+          created_at: string
+          estado_ultima_parrilla: string | null
+          id: string
+          nombre: string
+          pais: string | null
+          redes: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          estado_ultima_parrilla?: string | null
+          id?: string
+          nombre: string
+          pais?: string | null
+          redes?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          estado_ultima_parrilla?: string | null
+          id?: string
+          nombre?: string
+          pais?: string | null
+          redes?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      publicaciones: {
+        Row: {
+          copy: string | null
+          created_at: string
+          estado: string | null
+          fecha: string
+          id: string
+          parrilla_id: string
+          proyecto_id: string
+          red: string
+          tipo: string | null
+          titulo: string | null
+        }
+        Insert: {
+          copy?: string | null
+          created_at?: string
+          estado?: string | null
+          fecha: string
+          id?: string
+          parrilla_id: string
+          proyecto_id: string
+          red: string
+          tipo?: string | null
+          titulo?: string | null
+        }
+        Update: {
+          copy?: string | null
+          created_at?: string
+          estado?: string | null
+          fecha?: string
+          id?: string
+          parrilla_id?: string
+          proyecto_id?: string
+          red?: string
+          tipo?: string | null
+          titulo?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publicaciones_parrilla_id_fkey"
+            columns: ["parrilla_id"]
+            isOneToOne: false
+            referencedRelation: "parrillas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publicaciones_proyecto_id_fkey"
+            columns: ["proyecto_id"]
+            isOneToOne: false
+            referencedRelation: "proyectos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

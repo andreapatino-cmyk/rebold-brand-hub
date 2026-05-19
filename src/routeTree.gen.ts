@@ -14,6 +14,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProyectosIdRouteImport } from './routes/proyectos.$id'
 import { Route as ProyectosIdIndexRouteImport } from './routes/proyectos.$id.index'
+import { Route as ProyectosIdSugerenciasRouteImport } from './routes/proyectos.$id.sugerencias'
+import { Route as ProyectosIdPiezasRouteImport } from './routes/proyectos.$id.piezas'
+import { Route as ProyectosIdParrillaRouteImport } from './routes/proyectos.$id.parrilla'
+import { Route as ProyectosIdEvaluacionRouteImport } from './routes/proyectos.$id.evaluacion'
 
 const ProyectosRoute = ProyectosRouteImport.update({
   id: '/proyectos',
@@ -40,18 +44,46 @@ const ProyectosIdIndexRoute = ProyectosIdIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ProyectosIdRoute,
 } as any)
+const ProyectosIdSugerenciasRoute = ProyectosIdSugerenciasRouteImport.update({
+  id: '/sugerencias',
+  path: '/sugerencias',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
+const ProyectosIdPiezasRoute = ProyectosIdPiezasRouteImport.update({
+  id: '/piezas',
+  path: '/piezas',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
+const ProyectosIdParrillaRoute = ProyectosIdParrillaRouteImport.update({
+  id: '/parrilla',
+  path: '/parrilla',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
+const ProyectosIdEvaluacionRoute = ProyectosIdEvaluacionRouteImport.update({
+  id: '/evaluacion',
+  path: '/evaluacion',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/proyectos': typeof ProyectosRouteWithChildren
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
+  '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
+  '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
+  '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
+  '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
   '/proyectos/$id/': typeof ProyectosIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/proyectos': typeof ProyectosRouteWithChildren
+  '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
+  '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
+  '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
+  '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
   '/proyectos/$id': typeof ProyectosIdIndexRoute
 }
 export interface FileRoutesById {
@@ -60,6 +92,10 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/proyectos': typeof ProyectosRouteWithChildren
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
+  '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
+  '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
+  '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
+  '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
   '/proyectos/$id/': typeof ProyectosIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -69,15 +105,31 @@ export interface FileRouteTypes {
     | '/login'
     | '/proyectos'
     | '/proyectos/$id'
+    | '/proyectos/$id/evaluacion'
+    | '/proyectos/$id/parrilla'
+    | '/proyectos/$id/piezas'
+    | '/proyectos/$id/sugerencias'
     | '/proyectos/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/login' | '/proyectos' | '/proyectos/$id'
+  to:
+    | '/'
+    | '/login'
+    | '/proyectos'
+    | '/proyectos/$id/evaluacion'
+    | '/proyectos/$id/parrilla'
+    | '/proyectos/$id/piezas'
+    | '/proyectos/$id/sugerencias'
+    | '/proyectos/$id'
   id:
     | '__root__'
     | '/'
     | '/login'
     | '/proyectos'
     | '/proyectos/$id'
+    | '/proyectos/$id/evaluacion'
+    | '/proyectos/$id/parrilla'
+    | '/proyectos/$id/piezas'
+    | '/proyectos/$id/sugerencias'
     | '/proyectos/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -124,14 +176,50 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProyectosIdIndexRouteImport
       parentRoute: typeof ProyectosIdRoute
     }
+    '/proyectos/$id/sugerencias': {
+      id: '/proyectos/$id/sugerencias'
+      path: '/sugerencias'
+      fullPath: '/proyectos/$id/sugerencias'
+      preLoaderRoute: typeof ProyectosIdSugerenciasRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
+    '/proyectos/$id/piezas': {
+      id: '/proyectos/$id/piezas'
+      path: '/piezas'
+      fullPath: '/proyectos/$id/piezas'
+      preLoaderRoute: typeof ProyectosIdPiezasRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
+    '/proyectos/$id/parrilla': {
+      id: '/proyectos/$id/parrilla'
+      path: '/parrilla'
+      fullPath: '/proyectos/$id/parrilla'
+      preLoaderRoute: typeof ProyectosIdParrillaRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
+    '/proyectos/$id/evaluacion': {
+      id: '/proyectos/$id/evaluacion'
+      path: '/evaluacion'
+      fullPath: '/proyectos/$id/evaluacion'
+      preLoaderRoute: typeof ProyectosIdEvaluacionRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
   }
 }
 
 interface ProyectosIdRouteChildren {
+  ProyectosIdEvaluacionRoute: typeof ProyectosIdEvaluacionRoute
+  ProyectosIdParrillaRoute: typeof ProyectosIdParrillaRoute
+  ProyectosIdPiezasRoute: typeof ProyectosIdPiezasRoute
+  ProyectosIdSugerenciasRoute: typeof ProyectosIdSugerenciasRoute
   ProyectosIdIndexRoute: typeof ProyectosIdIndexRoute
 }
 
 const ProyectosIdRouteChildren: ProyectosIdRouteChildren = {
+  ProyectosIdEvaluacionRoute: ProyectosIdEvaluacionRoute,
+  ProyectosIdParrillaRoute: ProyectosIdParrillaRoute,
+  ProyectosIdPiezasRoute: ProyectosIdPiezasRoute,
+  ProyectosIdSugerenciasRoute: ProyectosIdSugerenciasRoute,
   ProyectosIdIndexRoute: ProyectosIdIndexRoute,
 }
 

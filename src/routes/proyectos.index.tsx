@@ -100,7 +100,6 @@ function ProyectosPage() {
     qc.invalidateQueries({ queryKey: ["proyectos"] });
   };
 
-
   return (
     <AppShell>
       <div className="mx-auto max-w-7xl px-6 py-10">
@@ -110,7 +109,6 @@ function ProyectosPage() {
             <h1 className="font-display text-3xl sm:text-4xl font-bold">Proyectos de marca</h1>
             <p className="text-muted-foreground mt-1">Gestiona las parrillas y piezas de cada cliente.</p>
           </div>
-
           <div className="flex items-center gap-2">
             {user && workspaceId && <TeamDialog workspaceId={workspaceId} currentUserId={user.id} />}
             <Dialog open={open} onOpenChange={setOpen}>
@@ -119,51 +117,52 @@ function ProyectosPage() {
                   <Plus className="h-4 w-4 mr-2" /> Nuevo proyecto
                 </Button>
               </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Nuevo proyecto</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Nombre de la marca</Label>
-                  <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Acme Co." />
-                </div>
-                <div className="space-y-2">
-                  <Label>País</Label>
-                  <Input value={pais} onChange={(e) => setPais(e.target.value)} placeholder="España" />
-                </div>
-                <div className="space-y-2">
-                  <Label>Redes activas</Label>
-                  <div className="flex flex-wrap gap-2">
-                    {REDES.map((r) => {
-                      const active = selRedes.includes(r);
-                      return (
-                        <button
-                          type="button"
-                          key={r}
-                          onClick={() => toggle(r)}
-                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                            active
-                              ? "bg-primary text-primary-foreground border-primary"
-                              : "bg-muted text-muted-foreground border-border hover:border-primary/50"
-                          }`}
-                        >
-                          {r}
-                        </button>
-                      );
-                    })}
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Nuevo proyecto</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label>Nombre de la marca</Label>
+                    <Input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Acme Co." />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>País</Label>
+                    <Input value={pais} onChange={(e) => setPais(e.target.value)} placeholder="España" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Redes activas</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {REDES.map((r) => {
+                        const active = selRedes.includes(r);
+                        return (
+                          <button
+                            type="button"
+                            key={r}
+                            onClick={() => toggle(r)}
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                              active
+                                ? "bg-primary text-primary-foreground border-primary"
+                                : "bg-muted text-muted-foreground border-border hover:border-primary/50"
+                            }`}
+                          >
+                            {r}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={create} disabled={saving} className="gradient-primary">
-                  {saving ? "Creando…" : "Crear proyecto"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
+                <DialogFooter>
+                  <Button onClick={create} disabled={saving} className="gradient-primary">
+                    {saving ? "Creando…" : "Crear proyecto"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
             </Dialog>
           </div>
         </div>
+
 
         {isLoading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">

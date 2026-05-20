@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
+import { TeamDialog } from "@/components/TeamDialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/proyectos/")({

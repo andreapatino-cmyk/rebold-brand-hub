@@ -42,6 +42,22 @@ function ProyectosPage() {
     if (!loading && !user) navigate({ to: "/login", replace: true });
   }, [user, loading, navigate]);
 
+  const { data: workspaceId } = useQuery({
+    queryKey: ["my-workspace", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("workspace_members")
+        .select("workspace_id")
+        .eq("user_id", user!.id)
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data?.workspace_id ?? null;
+    },
+  });
+
   const { data: proyectos = [], isLoading } = useQuery({
     queryKey: ["proyectos"],
     enabled: !!user,
@@ -66,9 +82,11 @@ function ProyectosPage() {
 
   const create = async () => {
     if (!nombre.trim()) return toast.error("El nombre es obligatorio");
+    if (!workspaceId) return toast.error("No se encontró tu workspace");
     setSaving(true);
     const { error } = await supabase.from("proyectos").insert({
       user_id: user!.id,
+      workspace_id: workspaceId,
       nombre: nombre.trim(),
       pais: pais.trim() || null,
       redes: selRedes,
@@ -80,6 +98,7 @@ function ProyectosPage() {
     setNombre(""); setPais(""); setSelRedes(["Instagram"]);
     qc.invalidateQueries({ queryKey: ["proyectos"] });
   };
+
 
   return (
     <AppShell>

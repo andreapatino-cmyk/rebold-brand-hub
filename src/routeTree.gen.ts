@@ -35,9 +35,9 @@ const ProyectosIndexRoute = ProyectosIndexRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProyectosIdRoute = ProyectosIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ProyectosRoute,
+  id: '/proyectos/$id',
+  path: '/proyectos/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ProyectosIdIndexRoute = ProyectosIdIndexRouteImport.update({
   id: '/',
@@ -136,6 +136,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   LoginRoute: typeof LoginRoute
+  ProyectosIdRoute: typeof ProyectosIdRouteWithChildren
   ProyectosIndexRoute: typeof ProyectosIndexRoute
 }
 
@@ -164,10 +165,10 @@ declare module '@tanstack/react-router' {
     }
     '/proyectos/$id': {
       id: '/proyectos/$id'
-      path: '/$id'
+      path: '/proyectos/$id'
       fullPath: '/proyectos/$id'
       preLoaderRoute: typeof ProyectosIdRouteImport
-      parentRoute: typeof ProyectosRoute
+      parentRoute: typeof rootRouteImport
     }
     '/proyectos/$id/': {
       id: '/proyectos/$id/'
@@ -207,21 +208,32 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface ProyectosIdRouteChildren {
+  ProyectosIdEvaluacionRoute: typeof ProyectosIdEvaluacionRoute
+  ProyectosIdParrillaRoute: typeof ProyectosIdParrillaRoute
+  ProyectosIdPiezasRoute: typeof ProyectosIdPiezasRoute
+  ProyectosIdSugerenciasRoute: typeof ProyectosIdSugerenciasRoute
+  ProyectosIdIndexRoute: typeof ProyectosIdIndexRoute
+}
+
+const ProyectosIdRouteChildren: ProyectosIdRouteChildren = {
+  ProyectosIdEvaluacionRoute: ProyectosIdEvaluacionRoute,
+  ProyectosIdParrillaRoute: ProyectosIdParrillaRoute,
+  ProyectosIdPiezasRoute: ProyectosIdPiezasRoute,
+  ProyectosIdSugerenciasRoute: ProyectosIdSugerenciasRoute,
+  ProyectosIdIndexRoute: ProyectosIdIndexRoute,
+}
+
+const ProyectosIdRouteWithChildren = ProyectosIdRoute._addFileChildren(
+  ProyectosIdRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   LoginRoute: LoginRoute,
+  ProyectosIdRoute: ProyectosIdRouteWithChildren,
   ProyectosIndexRoute: ProyectosIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

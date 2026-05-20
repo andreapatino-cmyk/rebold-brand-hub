@@ -111,12 +111,14 @@ function ProyectosPage() {
             <p className="text-muted-foreground mt-1">Gestiona las parrillas y piezas de cada cliente.</p>
           </div>
 
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gradient-primary glow-primary">
-                <Plus className="h-4 w-4 mr-2" /> Nuevo proyecto
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            {user && workspaceId && <TeamDialog workspaceId={workspaceId} currentUserId={user.id} />}
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="gradient-primary glow-primary">
+                  <Plus className="h-4 w-4 mr-2" /> Nuevo proyecto
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Nuevo proyecto</DialogTitle>

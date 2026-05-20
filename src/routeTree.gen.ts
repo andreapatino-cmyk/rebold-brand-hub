@@ -13,7 +13,6 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProyectosIndexRouteImport } from './routes/proyectos.index'
 import { Route as ProyectosIdRouteImport } from './routes/proyectos.$id'
-import { Route as ProyectosIdIndexRouteImport } from './routes/proyectos.$id.index'
 import { Route as ProyectosIdSugerenciasRouteImport } from './routes/proyectos.$id.sugerencias'
 import { Route as ProyectosIdPiezasRouteImport } from './routes/proyectos.$id.piezas'
 import { Route as ProyectosIdParrillaRouteImport } from './routes/proyectos.$id.parrilla'
@@ -38,11 +37,6 @@ const ProyectosIdRoute = ProyectosIdRouteImport.update({
   id: '/proyectos/$id',
   path: '/proyectos/$id',
   getParentRoute: () => rootRouteImport,
-} as any)
-const ProyectosIdIndexRoute = ProyectosIdIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => ProyectosIdRoute,
 } as any)
 const ProyectosIdSugerenciasRoute = ProyectosIdSugerenciasRouteImport.update({
   id: '/sugerencias',
@@ -74,17 +68,16 @@ export interface FileRoutesByFullPath {
   '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
   '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
   '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
-  '/proyectos/$id/': typeof ProyectosIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/proyectos/$id': typeof ProyectosIdRouteWithChildren
   '/proyectos': typeof ProyectosIndexRoute
   '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
   '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
   '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
   '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
-  '/proyectos/$id': typeof ProyectosIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -96,7 +89,6 @@ export interface FileRoutesById {
   '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
   '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
   '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
-  '/proyectos/$id/': typeof ProyectosIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -109,17 +101,16 @@ export interface FileRouteTypes {
     | '/proyectos/$id/parrilla'
     | '/proyectos/$id/piezas'
     | '/proyectos/$id/sugerencias'
-    | '/proyectos/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
+    | '/proyectos/$id'
     | '/proyectos'
     | '/proyectos/$id/evaluacion'
     | '/proyectos/$id/parrilla'
     | '/proyectos/$id/piezas'
     | '/proyectos/$id/sugerencias'
-    | '/proyectos/$id'
   id:
     | '__root__'
     | '/'
@@ -130,7 +121,6 @@ export interface FileRouteTypes {
     | '/proyectos/$id/parrilla'
     | '/proyectos/$id/piezas'
     | '/proyectos/$id/sugerencias'
-    | '/proyectos/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -170,13 +160,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProyectosIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/proyectos/$id/': {
-      id: '/proyectos/$id/'
-      path: '/'
-      fullPath: '/proyectos/$id/'
-      preLoaderRoute: typeof ProyectosIdIndexRouteImport
-      parentRoute: typeof ProyectosIdRoute
-    }
     '/proyectos/$id/sugerencias': {
       id: '/proyectos/$id/sugerencias'
       path: '/sugerencias'
@@ -213,7 +196,6 @@ interface ProyectosIdRouteChildren {
   ProyectosIdParrillaRoute: typeof ProyectosIdParrillaRoute
   ProyectosIdPiezasRoute: typeof ProyectosIdPiezasRoute
   ProyectosIdSugerenciasRoute: typeof ProyectosIdSugerenciasRoute
-  ProyectosIdIndexRoute: typeof ProyectosIdIndexRoute
 }
 
 const ProyectosIdRouteChildren: ProyectosIdRouteChildren = {
@@ -221,7 +203,6 @@ const ProyectosIdRouteChildren: ProyectosIdRouteChildren = {
   ProyectosIdParrillaRoute: ProyectosIdParrillaRoute,
   ProyectosIdPiezasRoute: ProyectosIdPiezasRoute,
   ProyectosIdSugerenciasRoute: ProyectosIdSugerenciasRoute,
-  ProyectosIdIndexRoute: ProyectosIdIndexRoute,
 }
 
 const ProyectosIdRouteWithChildren = ProyectosIdRoute._addFileChildren(

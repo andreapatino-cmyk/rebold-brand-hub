@@ -1,4 +1,4 @@
-import { createFileRoute, Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Calendar, LayoutGrid, Globe } from "lucide-react";
@@ -8,8 +8,15 @@ import { AppShell } from "@/components/AppShell";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/proyectos/$id")({
+  beforeLoad: ({ params, location }) => {
+    const base = `/proyectos/${params.id}`;
+    if (location.pathname === base || location.pathname === `${base}/`) {
+      throw redirect({ to: "/proyectos/$id/parrilla", params: { id: params.id }, replace: true });
+    }
+  },
   component: ProyectoLayout,
 });
+
 
 function ProyectoLayout() {
   const { id } = Route.useParams();

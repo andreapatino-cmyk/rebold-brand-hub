@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
+import { TeamDialog } from "@/components/TeamDialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/proyectos/")({
@@ -110,12 +111,14 @@ function ProyectosPage() {
             <p className="text-muted-foreground mt-1">Gestiona las parrillas y piezas de cada cliente.</p>
           </div>
 
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="gradient-primary glow-primary">
-                <Plus className="h-4 w-4 mr-2" /> Nuevo proyecto
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            {user && workspaceId && <TeamDialog workspaceId={workspaceId} currentUserId={user.id} />}
+            <Dialog open={open} onOpenChange={setOpen}>
+              <DialogTrigger asChild>
+                <Button className="gradient-primary glow-primary">
+                  <Plus className="h-4 w-4 mr-2" /> Nuevo proyecto
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Nuevo proyecto</DialogTitle>
@@ -158,7 +161,8 @@ function ProyectosPage() {
                 </Button>
               </DialogFooter>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         {isLoading ? (

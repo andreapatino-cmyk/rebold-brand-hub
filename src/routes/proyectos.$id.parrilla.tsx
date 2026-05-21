@@ -143,11 +143,25 @@ function ParrillaPage() {
         temporalidades: [],
       };
 
-      const res = await fetch("https://rebold.app.n8n.cloud/webhook/evaluar-parrilla", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      let res: Response;
+      try {
+        res = await fetch("https://rebold.app.n8n.cloud/webhook/evaluar-parrilla", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } catch (err: any) {
+        if (err?.name === "AbortError") {
+          throw new Error("La evaluación tardó más de 60 segundos. Inténtalo de nuevo.");
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
 
@@ -196,6 +210,19 @@ function ParrillaPage() {
 
   return (
     <div>
+      {evaluando && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4 p-8 rounded-xl border border-border bg-card shadow-lg max-w-sm text-center">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <div>
+              <div className="font-display text-lg font-bold">Evaluando parrilla…</div>
+              <div className="text-sm text-muted-foreground mt-1">
+                Estamos analizando tus publicaciones con IA. Esto puede tardar hasta 60 segundos.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setView(prevMonth(view))}>

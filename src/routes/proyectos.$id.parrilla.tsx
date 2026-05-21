@@ -110,45 +110,77 @@ function ParrillaPage() {
     }
     setEvaluando(true);
 
-    // Synthetic scoring based on content
-    const total = publicaciones.length;
-    const redesUnicas = new Set(publicaciones.map((p) => p.red)).size;
-    const tiposUnicos = new Set(publicaciones.map((p) => p.tipo)).size;
-    const fechasUnicas = new Set(publicaciones.map((p) => p.fecha)).size;
-    const conCopy = publicaciones.filter((p) => p.copy && p.copy.length > 30).length;
+    try {
+      const { data: proyecto } = await supabase
+        .from("proyectos")
+        .select("*")
+        .eq("id", proyectoId)
+        .maybeSingle();
 
-    const cap = (v: number) => Math.min(100, Math.max(0, Math.round(v)));
+      const { data: memoriaRows } = await supabase
+        .from("memoria_cliente")
+        .select("clave, valor")
+        .eq("proyecto_id", proyectoId);
 
-    const criterios = [
-      { nombre: "Frecuencia de publicación", score: cap((total / 12) * 100), descripcion: "Densidad mensual de contenido." },
-      { nombre: "Diversidad de canales", score: cap((redesUnicas / 4) * 100), descripcion: "Cobertura entre las redes activas." },
-      { nombre: "Variedad de formatos", score: cap((tiposUnicos / 4) * 100), descripcion: "Mix de Post, Reel, Story, Carrusel y Video." },
-      { nombre: "Distribución temporal", score: cap((fechasUnicas / total) * 100), descripcion: "Reparto a lo largo del mes." },
-      { nombre: "Calidad de copys", score: cap((conCopy / total) * 100), descripcion: "Publicaciones con copy desarrollado." },
-    ];
-    const global = Math.round(criterios.reduce((s, c) => s + c.score, 0) / criterios.length);
+      const memoria = {
+        preferencias: (memoriaRows ?? []).filter((m) => m.clave === "preferencia").map((m) => m.valor),
+        vetos: (memoriaRows ?? []).filter((m) => m.clave === "veto").map((m) => m.valor),
+        aprendizajes: (memoriaRows ?? []).filter((m) => m.clave === "aprendizaje").map((m) => m.valor),
+      };
 
-    const sugerencias = buildSugerencias(criterios, { total, redesUnicas, tiposUnicos });
+      const payload = {
+        proyecto: {
+          id: proyecto?.id ?? proyectoId,
+          nombre_marca: proyecto?.nombre ?? "",
+          pais: proyecto?.pais ?? "",
+          redes_activas: proyecto?.redes ?? [],
+          tono_de_voz: "",
+          pilares: [],
+        },
+        parrilla: { id: parrilla.id, mes: parrilla.mes, anio: parrilla.anio },
+        publicaciones,
+        memoria,
+        temporalidades: [],
+      };
 
-    const { data: evalRow, error } = await supabase.from("evaluaciones").insert({
-      parrilla_id: parrilla.id,
-      puntuacion_global: global,
-      criterios,
-      sugerencias,
-    }).select().single();
+      const res = await fetch("https://rebold.app.n8n.cloud/webhook/evaluar-parrilla", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
-    await supabase.from("proyectos").update({
-      estado_ultima_parrilla: global >= 75 ? "aprobada" : "en_revision",
-      updated_at: new Date().toISOString(),
-    }).eq("id", proyectoId);
+      if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
 
-    setEvaluando(false);
-    if (error) return toast.error(error.message);
-    navigate({
-      to: "/proyectos/$id/evaluacion",
-      params: { id: proyectoId },
-      search: { evalId: evalRow!.id },
-    });
+      const raw = await res.json().catch(() => ({}));
+      const r = Array.isArray(raw) ? raw[0] ?? {} : raw;
+      const global = Math.round(Number(r.puntuacion_global ?? r.global ?? 0));
+      const criterios = r.criterios ?? [];
+      const sugerencias = r.sugerencias ?? [];
+
+      const { data: evalRow, error } = await supabase.from("evaluaciones").insert({
+        parrilla_id: parrilla.id,
+        puntuacion_global: global,
+        criterios,
+        sugerencias,
+      }).select().single();
+
+      if (error) throw error;
+
+      await supabase.from("proyectos").update({
+        estado_ultima_parrilla: global >= 75 ? "aprobada" : "en_revision",
+        updated_at: new Date().toISOString(),
+      }).eq("id", proyectoId);
+
+      setEvaluando(false);
+      navigate({
+        to: "/proyectos/$id/evaluacion",
+        params: { id: proyectoId },
+        search: { evalId: evalRow!.id },
+      });
+    } catch (e: any) {
+      setEvaluando(false);
+      toast.error(e?.message ?? "Error al evaluar la parrilla");
+    }
   };
 
   const monthLabel = `${MESES[view.m]} ${view.y}`;

@@ -143,11 +143,25 @@ function ParrillaPage() {
         temporalidades: [],
       };
 
-      const res = await fetch("https://rebold.app.n8n.cloud/webhook/evaluar-parrilla", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      let res: Response;
+      try {
+        res = await fetch("https://rebold.app.n8n.cloud/webhook/evaluar-parrilla", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+      } catch (err: any) {
+        if (err?.name === "AbortError") {
+          throw new Error("La evaluación tardó más de 60 segundos. Inténtalo de nuevo.");
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
 

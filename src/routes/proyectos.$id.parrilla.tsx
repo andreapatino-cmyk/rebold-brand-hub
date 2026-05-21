@@ -151,11 +151,19 @@ function ParrillaPage() {
 
       if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
 
-      const raw = await res.json().catch(() => ({}));
+      const raw = await res.json().catch(() => null);
+      if (!raw) throw new Error("El webhook no devolvió datos");
       const r = Array.isArray(raw) ? raw[0] ?? {} : raw;
-      const global = Math.round(Number(r.puntuacion_global ?? r.global ?? 0));
+
+      const globalRaw = r.puntuacion_global ?? r.global;
       const criterios = r.criterios ?? [];
       const sugerencias = r.sugerencias ?? [];
+
+      if (globalRaw === undefined || globalRaw === null || (Array.isArray(criterios) && criterios.length === 0 && (!Array.isArray(sugerencias) || sugerencias.length === 0))) {
+        throw new Error("La respuesta del webhook no contiene resultados válidos");
+      }
+
+      const global = Math.round(Number(globalRaw));
 
       const { data: evalRow, error } = await supabase.from("evaluaciones").insert({
         parrilla_id: parrilla.id,
@@ -170,6 +178,7 @@ function ParrillaPage() {
         estado_ultima_parrilla: global >= 75 ? "aprobada" : "en_revision",
         updated_at: new Date().toISOString(),
       }).eq("id", proyectoId);
+
 
       setEvaluando(false);
       navigate({

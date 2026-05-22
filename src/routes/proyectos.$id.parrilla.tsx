@@ -180,7 +180,7 @@ function ParrillaPage() {
         ? criteriosRaw
         : Object.entries(criteriosRaw as Record<string, any>).map(([nombre, v]) => ({
             nombre,
-            score: Math.round(Number(v?.puntaje ?? v?.score ?? 0)),
+            score: Math.round(Number(v?.puntaje ?? v?.score ?? 0)) * 10,
             descripcion: v?.observacion ?? v?.descripcion ?? v?.detalle ?? undefined,
           }));
 

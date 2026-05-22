@@ -180,8 +180,8 @@ function ParrillaPage() {
         ? criteriosRaw
         : Object.entries(criteriosRaw as Record<string, any>).map(([nombre, v]) => ({
             nombre,
-            score: Math.round(Number((v && (v.score ?? v.puntuacion)) ?? v ?? 0)),
-            descripcion: v?.descripcion ?? v?.detalle ?? undefined,
+            score: Math.round(Number(v?.puntaje ?? v?.score ?? 0)),
+            descripcion: v?.observacion ?? v?.descripcion ?? v?.detalle ?? undefined,
           }));
 
       if (globalRaw === undefined || globalRaw === null || (criterios.length === 0 && (!Array.isArray(sugerencias) || sugerencias.length === 0))) {

@@ -167,13 +167,24 @@ function ParrillaPage() {
 
       const raw = await res.json().catch(() => null);
       if (!raw) throw new Error("El webhook no devolvió datos");
-      const r = Array.isArray(raw) ? raw[0] ?? {} : raw;
+      const r0 = Array.isArray(raw) ? raw[0] ?? {} : raw;
+      // Nuevo formato: { evaluacion: {...}, proyecto_id, parrilla_id }
+      const r = r0.evaluacion ?? r0;
 
       const globalRaw = r.puntuacion_global ?? r.global;
-      const criterios = r.criterios ?? [];
+      const criteriosRaw = r.criterios ?? [];
       const sugerencias = r.sugerencias ?? [];
 
-      if (globalRaw === undefined || globalRaw === null || (Array.isArray(criterios) && criterios.length === 0 && (!Array.isArray(sugerencias) || sugerencias.length === 0))) {
+      // criterios puede venir como objeto { nombre: { score, descripcion } } o como array
+      const criterios = Array.isArray(criteriosRaw)
+        ? criteriosRaw
+        : Object.entries(criteriosRaw as Record<string, any>).map(([nombre, v]) => ({
+            nombre,
+            score: Math.round(Number((v && (v.score ?? v.puntuacion)) ?? v ?? 0)),
+            descripcion: v?.descripcion ?? v?.detalle ?? undefined,
+          }));
+
+      if (globalRaw === undefined || globalRaw === null || (criterios.length === 0 && (!Array.isArray(sugerencias) || sugerencias.length === 0))) {
         throw new Error("La respuesta del webhook no contiene resultados válidos");
       }
 

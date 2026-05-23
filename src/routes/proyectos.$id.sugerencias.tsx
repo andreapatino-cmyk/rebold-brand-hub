@@ -91,7 +91,7 @@ function SugerenciasPage() {
             Mejoras priorizadas con guiones ETV listos para producir.
           </p>
         </div>
-        <Link to="/proyectos/$id/evaluacion" params={{ id }} search={{ evalId: evaluacion.id }}>
+        <Link to="/proyectos/$id/evaluacion" params={{ id }} search={{ evalId: evalId ?? evaluacion.id }}>
           <Button variant="outline" size="sm">
             <ArrowLeft className="h-4 w-4 mr-2" /> Ver evaluación
           </Button>

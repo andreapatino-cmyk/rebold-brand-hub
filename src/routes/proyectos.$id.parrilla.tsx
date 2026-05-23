@@ -144,8 +144,9 @@ function ParrillaPage() {
       };
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 60000);
+      const timeoutId = setTimeout(() => controller.abort(), 90000);
 
+      let webhookJson: any = null;
       try {
         const res = await fetch("https://rebold.app.n8n.cloud/webhook/evaluar-parrilla", {
           method: "POST",
@@ -154,6 +155,8 @@ function ParrillaPage() {
           signal: controller.signal,
         });
         if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
+        const text = await res.text();
+        try { webhookJson = text ? JSON.parse(text) : null; } catch { webhookJson = null; }
       } catch (err: any) {
         if (err?.name === "AbortError") {
           throw new Error("El webhook tardó demasiado en responder. Inténtalo de nuevo.");
@@ -163,32 +166,39 @@ function ParrillaPage() {
         clearTimeout(timeoutId);
       }
 
-      // El webhook responde inmediatamente ("Workflow was started").
-      // n8n procesa en background e inserta el resultado en `evaluaciones`.
-      // Esperamos 30s y consultamos la evaluación más reciente para esta parrilla.
-      const sinceIso = new Date().toISOString();
-      await new Promise((r) => setTimeout(r, 30000));
+      // n8n puede devolver { evaluacion: {...} } o un array [{...}]
+      const root = Array.isArray(webhookJson) ? webhookJson[0] : webhookJson;
+      const evaluacion = root?.evaluacion ?? root;
 
-      let evalRow: any = null;
-      for (let i = 0; i < 10; i++) {
-        const { data } = await supabase
-          .from("evaluaciones")
-          .select("*")
-          .eq("parrilla_id", parrilla.id)
-          .gte("created_at", sinceIso)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (data) { evalRow = data; break; }
-        await new Promise((r) => setTimeout(r, 3000));
+      if (!evaluacion || (evaluacion.puntuacion_global == null && !evaluacion.criterios)) {
+        throw new Error("El webhook no devolvió una evaluación válida.");
       }
 
-      if (!evalRow) {
-        throw new Error("La evaluación aún no está lista. Inténtalo de nuevo en unos segundos.");
-      }
+      // Mapear criterios { C1_xxx: { puntaje, nivel, observacion } } -> array
+      const criteriosObj = evaluacion.criterios ?? {};
+      const criteriosArr = Object.entries(criteriosObj).map(([k, v]: [string, any]) => ({
+        nombre: k,
+        score: Math.round(Number(v?.puntaje ?? v?.score ?? 0)) * 10,
+        nivel: v?.nivel,
+        descripcion: v?.observacion ?? v?.descripcion ?? "",
+      }));
+
+      const evalPayload = {
+        puntuacion_global: Number(evaluacion.puntuacion_global ?? 0),
+        nivel_global: evaluacion.nivel_global,
+        criterios: criteriosArr,
+        alertas: evaluacion.alertas ?? [],
+        sugerencias: evaluacion.sugerencias ?? [],
+        resumen: evaluacion.resumen ?? "",
+        parrilla_id: parrilla.id,
+        proyecto_id: proyectoId,
+      };
+
+      const evalId = `local-${Date.now()}`;
+      sessionStorage.setItem(`evaluacion:${evalId}`, JSON.stringify(evalPayload));
 
       await supabase.from("proyectos").update({
-        estado_ultima_parrilla: Number(evalRow.puntuacion_global) >= 75 ? "aprobada" : "en_revision",
+        estado_ultima_parrilla: evalPayload.puntuacion_global >= 75 ? "aprobada" : "en_revision",
         updated_at: new Date().toISOString(),
       }).eq("id", proyectoId);
 
@@ -196,7 +206,7 @@ function ParrillaPage() {
       navigate({
         to: "/proyectos/$id/evaluacion",
         params: { id: proyectoId },
-        search: { evalId: evalRow.id },
+        search: { evalId },
       });
 
     } catch (e: any) {

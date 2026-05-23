@@ -146,71 +146,59 @@ function ParrillaPage() {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-      let res: Response;
       try {
-        res = await fetch("https://rebold.app.n8n.cloud/webhook/evaluar-parrilla", {
+        const res = await fetch("https://rebold.app.n8n.cloud/webhook/evaluar-parrilla", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
           signal: controller.signal,
         });
+        if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
       } catch (err: any) {
         if (err?.name === "AbortError") {
-          throw new Error("La evaluación tardó más de 60 segundos. Inténtalo de nuevo.");
+          throw new Error("El webhook tardó demasiado en responder. Inténtalo de nuevo.");
         }
         throw err;
       } finally {
         clearTimeout(timeoutId);
       }
 
-      if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
+      // El webhook responde inmediatamente ("Workflow was started").
+      // n8n procesa en background e inserta el resultado en `evaluaciones`.
+      // Esperamos 30s y consultamos la evaluación más reciente para esta parrilla.
+      const sinceIso = new Date().toISOString();
+      await new Promise((r) => setTimeout(r, 30000));
 
-      const raw = await res.json().catch(() => null);
-      if (!raw) throw new Error("El webhook no devolvió datos");
-      const r0 = Array.isArray(raw) ? raw[0] ?? {} : raw;
-      // Nuevo formato: { evaluacion: {...}, proyecto_id, parrilla_id }
-      const r = r0.evaluacion ?? r0;
-
-      const globalRaw = r.puntuacion_global ?? r.global;
-      const criteriosRaw = r.criterios ?? [];
-      const sugerencias = r.sugerencias ?? [];
-
-      // criterios puede venir como objeto { nombre: { score, descripcion } } o como array
-      const criterios = Array.isArray(criteriosRaw)
-        ? criteriosRaw
-        : Object.entries(criteriosRaw as Record<string, any>).map(([nombre, v]) => ({
-            nombre,
-            score: Math.round(Number(v?.puntaje ?? v?.score ?? 0)) * 10,
-            descripcion: v?.observacion ?? v?.descripcion ?? v?.detalle ?? undefined,
-          }));
-
-      if (globalRaw === undefined || globalRaw === null || (criterios.length === 0 && (!Array.isArray(sugerencias) || sugerencias.length === 0))) {
-        throw new Error("La respuesta del webhook no contiene resultados válidos");
+      let evalRow: any = null;
+      for (let i = 0; i < 10; i++) {
+        const { data } = await supabase
+          .from("evaluaciones")
+          .select("*")
+          .eq("parrilla_id", parrilla.id)
+          .gte("created_at", sinceIso)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data) { evalRow = data; break; }
+        await new Promise((r) => setTimeout(r, 3000));
       }
 
-      const global = Math.round(Number(globalRaw));
-
-      const { data: evalRow, error } = await supabase.from("evaluaciones").insert({
-        parrilla_id: parrilla.id,
-        puntuacion_global: global,
-        criterios,
-        sugerencias,
-      }).select().single();
-
-      if (error) throw error;
+      if (!evalRow) {
+        throw new Error("La evaluación aún no está lista. Inténtalo de nuevo en unos segundos.");
+      }
 
       await supabase.from("proyectos").update({
-        estado_ultima_parrilla: global >= 75 ? "aprobada" : "en_revision",
+        estado_ultima_parrilla: Number(evalRow.puntuacion_global) >= 75 ? "aprobada" : "en_revision",
         updated_at: new Date().toISOString(),
       }).eq("id", proyectoId);
-
 
       setEvaluando(false);
       navigate({
         to: "/proyectos/$id/evaluacion",
         params: { id: proyectoId },
-        search: { evalId: evalRow!.id },
+        search: { evalId: evalRow.id },
       });
+
     } catch (e: any) {
       setEvaluando(false);
       toast.error(e?.message ?? "Error al evaluar la parrilla");

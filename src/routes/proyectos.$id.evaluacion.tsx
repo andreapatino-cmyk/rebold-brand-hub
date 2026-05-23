@@ -21,7 +21,13 @@ function EvaluacionPage() {
   const { data: evaluacion, isLoading } = useQuery({
     queryKey: ["evaluacion", id, evalId],
     queryFn: async () => {
-      // get the parrilla(s) of proyecto, then the latest evaluacion (or by id)
+      // Evaluación local (proveniente del webhook, guardada en sessionStorage)
+      if (evalId && evalId.startsWith("local-")) {
+        const raw = sessionStorage.getItem(`evaluacion:${evalId}`);
+        if (raw) {
+          try { return JSON.parse(raw); } catch { /* fallthrough */ }
+        }
+      }
       let query = supabase.from("evaluaciones").select("*, parrillas!inner(proyecto_id)");
       if (evalId) {
         const { data, error } = await query.eq("id", evalId).maybeSingle();

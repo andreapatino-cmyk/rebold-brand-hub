@@ -28,6 +28,12 @@ function SugerenciasPage() {
   const { data: evaluacion, isLoading } = useQuery({
     queryKey: ["sugerencias", id, evalId],
     queryFn: async () => {
+      if (evalId && evalId.startsWith("local-")) {
+        const raw = sessionStorage.getItem(`evaluacion:${evalId}`);
+        if (raw) {
+          try { return JSON.parse(raw); } catch { /* fallthrough */ }
+        }
+      }
       let query = supabase.from("evaluaciones").select("*, parrillas!inner(proyecto_id)");
       if (evalId) {
         const { data, error } = await query.eq("id", evalId).maybeSingle();
@@ -46,7 +52,18 @@ function SugerenciasPage() {
 
   if (isLoading) return <div className="text-sm text-muted-foreground">Cargando sugerencias…</div>;
 
-  const sugerencias = ((evaluacion?.sugerencias as unknown) as Sug[]) ?? [];
+  const rawSug = ((evaluacion?.sugerencias as unknown) as any[]) ?? [];
+  const sugerencias: Sug[] = rawSug.map((s) => {
+    if (typeof s === "string") {
+      return { titulo: s, descripcion: "", impacto: "Medio" };
+    }
+    return {
+      titulo: s?.titulo ?? s?.title ?? s?.nombre ?? "Sugerencia",
+      descripcion: s?.descripcion ?? s?.description ?? s?.detalle ?? "",
+      impacto: s?.impacto ?? s?.impact ?? "Medio",
+      guion_etv: s?.guion_etv ?? s?.guion ?? undefined,
+    };
+  });
 
   if (!evaluacion || sugerencias.length === 0) {
     return (

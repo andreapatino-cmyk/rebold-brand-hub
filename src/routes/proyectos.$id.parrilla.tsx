@@ -138,6 +138,67 @@ function ParrillaPage() {
 
   const [evaluando, setEvaluando] = useState(false);
 
+  // ---- Import Excel ----
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
+  const [importing, setImporting] = useState(false);
+
+  const handleFile = async (file: File) => {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: "", raw: true });
+      if (!rows.length) { toast.error("El archivo está vacío"); return; }
+      const norm = (k: string) => k.toString().trim().toLowerCase();
+      const parsed: ImportRow[] = rows.map((r) => {
+        const map: Record<string, any> = {};
+        for (const k of Object.keys(r)) map[norm(k)] = r[k];
+        const fecha = parseFecha(map["fecha"], view.y, view.m + 1);
+        const red = String(map["red"] ?? "").trim();
+        const tipo = String(map["tipo"] ?? "").trim() || "Post";
+        const titulo = String(map["título"] ?? map["titulo"] ?? "").trim();
+        const copy = String(map["copy"] ?? "").trim();
+        let _error: string | undefined;
+        if (!fecha) _error = "Fecha inválida";
+        else if (!red) _error = "Falta Red";
+        else if (!titulo) _error = "Falta Título";
+        return { fecha, red, tipo, titulo, copy, _error };
+      });
+      setImportRows(parsed);
+      setImportOpen(true);
+    } catch (e: any) {
+      toast.error(e?.message ?? "No se pudo leer el archivo");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!parrilla) return;
+    const validas = importRows.filter((r) => !r._error);
+    if (!validas.length) return toast.error("No hay filas válidas para importar");
+    setImporting(true);
+    const { error } = await supabase.from("publicaciones").insert(
+      validas.map((r) => ({
+        parrilla_id: parrilla.id,
+        proyecto_id: proyectoId,
+        fecha: r.fecha,
+        red: r.red,
+        tipo: r.tipo,
+        titulo: r.titulo,
+        copy: r.copy || null,
+      }))
+    );
+    setImporting(false);
+    if (error) return toast.error(error.message);
+    toast.success(`${validas.length} publicaciones importadas`);
+    setImportOpen(false);
+    setImportRows([]);
+    qc.invalidateQueries({ queryKey: ["publicaciones", parrilla.id] });
+  };
+
   const evaluar = async () => {
     if (!parrilla) return;
     if (publicaciones.length === 0) {

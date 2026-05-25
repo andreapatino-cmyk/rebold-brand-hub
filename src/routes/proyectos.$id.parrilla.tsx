@@ -29,7 +29,6 @@ type ImportRow = {
 
 function parseFecha(raw: any, year: number, month: number): string {
   if (raw == null || raw === "") return "";
-  // Excel serial date
   if (typeof raw === "number") {
     const d = XLSX.SSF.parse_date_code(raw);
     if (d) return `${d.y}-${pad(d.m)}-${pad(d.d)}`;
@@ -38,16 +37,13 @@ function parseFecha(raw: any, year: number, month: number): string {
     return `${raw.getFullYear()}-${pad(raw.getMonth() + 1)}-${pad(raw.getDate())}`;
   }
   const s = String(raw).trim();
-  // ISO yyyy-mm-dd
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (m) return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
-  // dd/mm/yyyy or dd-mm-yyyy
   m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
   if (m) {
     const y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
     return `${y}-${pad(+m[2])}-${pad(+m[1])}`;
   }
-  // just day number -> month/year actuales
   if (/^\d{1,2}$/.test(s)) return `${year}-${pad(month)}-${pad(+s)}`;
   return "";
 }
@@ -70,7 +66,6 @@ function ParrillaPage() {
   const today = new Date();
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
 
-  // Get or create parrilla for this month
   const { data: parrilla } = useQuery({
     queryKey: ["parrilla", proyectoId, view.y, view.m],
     queryFn: async () => {
@@ -138,7 +133,6 @@ function ParrillaPage() {
 
   const [evaluando, setEvaluando] = useState(false);
 
-  // ---- Import Excel ----
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
@@ -155,15 +149,30 @@ function ParrillaPage() {
       const parsed: ImportRow[] = rows.map((r) => {
         const map: Record<string, any> = {};
         for (const k of Object.keys(r)) map[norm(k)] = r[k];
+
         const fecha = parseFecha(map["fecha"], view.y, view.m + 1);
-        const red = String(map["red"] ?? "").trim();
-        const tipo = String(map["tipo"] ?? "").trim() || "Post";
-        const titulo = String(map["título"] ?? map["titulo"] ?? "").trim();
-        const copy = String(map["copy"] ?? "").trim();
+
+        // Mapeo flexible de columnas — compatible con Excel de Rebold y formato simple
+        const redRaw = String(map["redes"] ?? map["red"] ?? "").trim();
+        // Si viene "facebook, instagram, x" tomar solo la primera red
+        const red = redRaw.split(",")[0].trim();
+
+        const tipo = String(map["formato"] ?? map["tipo"] ?? "").trim() || "Post";
+
+        // Concepto es el título principal en el Excel de Rebold
+        const titulo = String(
+          map["concepto"] ?? map["hook"] ?? map["título"] ?? map["titulo"] ?? ""
+        ).trim();
+
+        // Copy corto primero, luego copy largo, luego copy genérico
+        const copy = String(
+          map["copy corto"] ?? map["copy largo"] ?? map["copy"] ?? ""
+        ).trim();
+
         let _error: string | undefined;
         if (!fecha) _error = "Fecha inválida";
         else if (!red) _error = "Falta Red";
-        else if (!titulo) _error = "Falta Título";
+        else if (!titulo) _error = "Falta Concepto";
         return { fecha, red, tipo, titulo, copy, _error };
       });
       setImportRows(parsed);
@@ -262,7 +271,6 @@ function ParrillaPage() {
         clearTimeout(timeoutId);
       }
 
-      // n8n puede devolver { evaluacion: {...} } o un array [{...}]
       const root = Array.isArray(webhookJson) ? webhookJson[0] : webhookJson;
       const evaluacion = root?.evaluacion ?? root;
 
@@ -270,7 +278,6 @@ function ParrillaPage() {
         throw new Error("El webhook no devolvió una evaluación válida.");
       }
 
-      // Mapear criterios { C1_xxx: { puntaje, nivel, observacion } } -> array
       const criteriosObj = evaluacion.criterios ?? {};
       const criteriosArr = Object.entries(criteriosObj).map(([k, v]: [string, any]) => ({
         nombre: k,
@@ -281,7 +288,6 @@ function ParrillaPage() {
 
       const evalId = `local-${Date.now()}`;
 
-      // Fallback: algunos webhooks devuelven sugerencias/alertas/resumen en la raíz
       const evalPayload = {
         id: evalId,
         puntuacion_global: Number(evaluacion.puntuacion_global ?? root?.puntuacion_global ?? 0),
@@ -525,7 +531,7 @@ function ParrillaPage() {
 
 function buildCalendar(y: number, m: number): (number | null)[] {
   const first = new Date(y, m, 1);
-  const startWeekday = (first.getDay() + 6) % 7; // Monday=0
+  const startWeekday = (first.getDay() + 6) % 7;
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const cells: (number | null)[] = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);

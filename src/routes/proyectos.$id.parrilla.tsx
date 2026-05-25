@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronLeft, ChevronRight, Plus, Sparkles, Loader2,
+  ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Upload,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,40 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+
+type ImportRow = {
+  fecha: string;
+  red: string;
+  tipo: string;
+  titulo: string;
+  copy: string;
+  _error?: string;
+};
+
+function parseFecha(raw: any, year: number, month: number): string {
+  if (raw == null || raw === "") return "";
+  // Excel serial date
+  if (typeof raw === "number") {
+    const d = XLSX.SSF.parse_date_code(raw);
+    if (d) return `${d.y}-${pad(d.m)}-${pad(d.d)}`;
+  }
+  if (raw instanceof Date) {
+    return `${raw.getFullYear()}-${pad(raw.getMonth() + 1)}-${pad(raw.getDate())}`;
+  }
+  const s = String(raw).trim();
+  // ISO yyyy-mm-dd
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
+  // dd/mm/yyyy or dd-mm-yyyy
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if (m) {
+    const y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+    return `${y}-${pad(+m[2])}-${pad(+m[1])}`;
+  }
+  // just day number -> month/year actuales
+  if (/^\d{1,2}$/.test(s)) return `${year}-${pad(month)}-${pad(+s)}`;
+  return "";
+}
 
 export const Route = createFileRoute("/proyectos/$id/parrilla")({
   component: ParrillaPage,
@@ -102,6 +137,67 @@ function ParrillaPage() {
   };
 
   const [evaluando, setEvaluando] = useState(false);
+
+  // ---- Import Excel ----
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importRows, setImportRows] = useState<ImportRow[]>([]);
+  const [importing, setImporting] = useState(false);
+
+  const handleFile = async (file: File) => {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows: any[] = XLSX.utils.sheet_to_json(ws, { defval: "", raw: true });
+      if (!rows.length) { toast.error("El archivo está vacío"); return; }
+      const norm = (k: string) => k.toString().trim().toLowerCase();
+      const parsed: ImportRow[] = rows.map((r) => {
+        const map: Record<string, any> = {};
+        for (const k of Object.keys(r)) map[norm(k)] = r[k];
+        const fecha = parseFecha(map["fecha"], view.y, view.m + 1);
+        const red = String(map["red"] ?? "").trim();
+        const tipo = String(map["tipo"] ?? "").trim() || "Post";
+        const titulo = String(map["título"] ?? map["titulo"] ?? "").trim();
+        const copy = String(map["copy"] ?? "").trim();
+        let _error: string | undefined;
+        if (!fecha) _error = "Fecha inválida";
+        else if (!red) _error = "Falta Red";
+        else if (!titulo) _error = "Falta Título";
+        return { fecha, red, tipo, titulo, copy, _error };
+      });
+      setImportRows(parsed);
+      setImportOpen(true);
+    } catch (e: any) {
+      toast.error(e?.message ?? "No se pudo leer el archivo");
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!parrilla) return;
+    const validas = importRows.filter((r) => !r._error);
+    if (!validas.length) return toast.error("No hay filas válidas para importar");
+    setImporting(true);
+    const { error } = await supabase.from("publicaciones").insert(
+      validas.map((r) => ({
+        parrilla_id: parrilla.id,
+        proyecto_id: proyectoId,
+        fecha: r.fecha,
+        red: r.red,
+        tipo: r.tipo,
+        titulo: r.titulo,
+        copy: r.copy || null,
+      }))
+    );
+    setImporting(false);
+    if (error) return toast.error(error.message);
+    toast.success(`${validas.length} publicaciones importadas`);
+    setImportOpen(false);
+    setImportRows([]);
+    qc.invalidateQueries({ queryKey: ["publicaciones", parrilla.id] });
+  };
 
   const evaluar = async () => {
     if (!parrilla) return;
@@ -256,6 +352,17 @@ function ParrillaPage() {
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {publicaciones.length} publicación{publicaciones.length === 1 ? "" : "es"}
           </span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-2" />
+            Importar Excel
+          </Button>
           <Button onClick={evaluar} disabled={evaluando} className="gradient-primary glow-primary">
             {evaluando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             Evaluar parrilla
@@ -360,6 +467,54 @@ function ParrillaPage() {
           <DialogFooter>
             <Button onClick={save} className="gradient-primary">
               <Plus className="h-4 w-4 mr-2" /> Añadir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Previsualizar importación</DialogTitle>
+          </DialogHeader>
+          <div className="text-xs text-muted-foreground mb-2">
+            {importRows.filter((r) => !r._error).length} válidas · {importRows.filter((r) => r._error).length} con errores · {importRows.length} totales
+          </div>
+          <div className="max-h-[420px] overflow-auto rounded-md border border-border">
+            <table className="w-full text-xs">
+              <thead className="bg-muted/40 sticky top-0">
+                <tr className="text-left">
+                  <th className="px-2 py-2">Fecha</th>
+                  <th className="px-2 py-2">Red</th>
+                  <th className="px-2 py-2">Tipo</th>
+                  <th className="px-2 py-2">Título</th>
+                  <th className="px-2 py-2">Copy</th>
+                  <th className="px-2 py-2">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {importRows.map((r, i) => (
+                  <tr key={i} className={`border-t border-border/60 ${r._error ? "bg-destructive/10" : ""}`}>
+                    <td className="px-2 py-1.5 whitespace-nowrap">{r.fecha || "—"}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">{r.red || "—"}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">{r.tipo}</td>
+                    <td className="px-2 py-1.5 max-w-[200px] truncate" title={r.titulo}>{r.titulo || "—"}</td>
+                    <td className="px-2 py-1.5 max-w-[200px] truncate" title={r.copy}>{r.copy}</td>
+                    <td className="px-2 py-1.5 whitespace-nowrap">
+                      {r._error
+                        ? <span className="text-destructive">{r._error}</span>
+                        : <span className="text-primary">OK</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>Cancelar</Button>
+            <Button onClick={confirmImport} disabled={importing} className="gradient-primary">
+              {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+              Importar {importRows.filter((r) => !r._error).length}
             </Button>
           </DialogFooter>
         </DialogContent>

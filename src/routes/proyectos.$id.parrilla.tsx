@@ -183,16 +183,20 @@ function ParrillaPage() {
         descripcion: v?.observacion ?? v?.descripcion ?? "",
       }));
 
+      // Fallback: algunos webhooks devuelven sugerencias/alertas/resumen en la raíz
       const evalPayload = {
-        puntuacion_global: Number(evaluacion.puntuacion_global ?? 0),
-        nivel_global: evaluacion.nivel_global,
+        puntuacion_global: Number(evaluacion.puntuacion_global ?? root?.puntuacion_global ?? 0),
+        nivel_global: evaluacion.nivel_global ?? root?.nivel_global,
         criterios: criteriosArr,
-        alertas: evaluacion.alertas ?? [],
-        sugerencias: evaluacion.sugerencias ?? [],
-        resumen: evaluacion.resumen ?? "",
+        alertas: evaluacion.alertas ?? root?.alertas ?? [],
+        sugerencias: evaluacion.sugerencias ?? root?.sugerencias ?? [],
+        resumen: evaluacion.resumen ?? root?.resumen ?? "",
         parrilla_id: parrilla.id,
         proyecto_id: proyectoId,
       };
+
+      console.log("[evaluacion] webhook root:", root);
+      console.log("[evaluacion] payload guardado:", evalPayload);
 
       const evalId = `local-${Date.now()}`;
       sessionStorage.setItem(`evaluacion:${evalId}`, JSON.stringify(evalPayload));

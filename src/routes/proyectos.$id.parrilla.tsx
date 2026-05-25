@@ -352,6 +352,17 @@ function ParrillaPage() {
           <span className="text-xs text-muted-foreground hidden sm:inline">
             {publicaciones.length} publicación{publicaciones.length === 1 ? "" : "es"}
           </span>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-2" />
+            Importar Excel
+          </Button>
           <Button onClick={evaluar} disabled={evaluando} className="gradient-primary glow-primary">
             {evaluando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             Evaluar parrilla

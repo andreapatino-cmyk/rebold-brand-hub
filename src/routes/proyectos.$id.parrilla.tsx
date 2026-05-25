@@ -1,9 +1,10 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronLeft, ChevronRight, Plus, Sparkles, Loader2,
+  ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Upload,
 } from "lucide-react";
+import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,40 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+
+type ImportRow = {
+  fecha: string;
+  red: string;
+  tipo: string;
+  titulo: string;
+  copy: string;
+  _error?: string;
+};
+
+function parseFecha(raw: any, year: number, month: number): string {
+  if (raw == null || raw === "") return "";
+  // Excel serial date
+  if (typeof raw === "number") {
+    const d = XLSX.SSF.parse_date_code(raw);
+    if (d) return `${d.y}-${pad(d.m)}-${pad(d.d)}`;
+  }
+  if (raw instanceof Date) {
+    return `${raw.getFullYear()}-${pad(raw.getMonth() + 1)}-${pad(raw.getDate())}`;
+  }
+  const s = String(raw).trim();
+  // ISO yyyy-mm-dd
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return `${m[1]}-${pad(+m[2])}-${pad(+m[3])}`;
+  // dd/mm/yyyy or dd-mm-yyyy
+  m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+  if (m) {
+    const y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+    return `${y}-${pad(+m[2])}-${pad(+m[1])}`;
+  }
+  // just day number -> month/year actuales
+  if (/^\d{1,2}$/.test(s)) return `${year}-${pad(month)}-${pad(+s)}`;
+  return "";
+}
 
 export const Route = createFileRoute("/proyectos/$id/parrilla")({
   component: ParrillaPage,

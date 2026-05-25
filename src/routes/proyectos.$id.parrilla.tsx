@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Upload,
+  ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Upload, Trash2, X,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,8 +11,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -105,6 +109,7 @@ function ParrillaPage() {
     return m;
   }, [publicaciones]);
 
+  // --- Nueva publicación ---
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ fecha: "", red: "Instagram", tipo: "Post", titulo: "", copy: "" });
 
@@ -131,8 +136,33 @@ function ParrillaPage() {
     qc.invalidateQueries({ queryKey: ["publicaciones", parrilla.id] });
   };
 
+  // --- Eliminar publicación ---
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePublicacion, setDeletePublicacion] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const openDeletePublicacion = (p: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeletePublicacion(p);
+    setDeleteOpen(true);
+  };
+
+  const confirmDeletePublicacion = async () => {
+    if (!deletePublicacion || !parrilla) return;
+    setDeleting(true);
+    const { error } = await supabase.from("publicaciones").delete().eq("id", deletePublicacion.id);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success("Publicación eliminada");
+    setDeleteOpen(false);
+    qc.invalidateQueries({ queryKey: ["publicaciones", parrilla.id] });
+  };
+
+  // --- Evaluación ---
   const [evaluando, setEvaluando] = useState(false);
 
+  // --- Importar Excel ---
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
@@ -149,26 +179,12 @@ function ParrillaPage() {
       const parsed: ImportRow[] = rows.map((r) => {
         const map: Record<string, any> = {};
         for (const k of Object.keys(r)) map[norm(k)] = r[k];
-
         const fecha = parseFecha(map["fecha"], view.y, view.m + 1);
-
-        // Mapeo flexible de columnas — compatible con Excel de Rebold y formato simple
         const redRaw = String(map["redes"] ?? map["red"] ?? "").trim();
-        // Si viene "facebook, instagram, x" tomar solo la primera red
         const red = redRaw.split(",")[0].trim();
-
         const tipo = String(map["formato"] ?? map["tipo"] ?? "").trim() || "Post";
-
-        // Concepto es el título principal en el Excel de Rebold
-        const titulo = String(
-          map["concepto"] ?? map["hook"] ?? map["título"] ?? map["titulo"] ?? ""
-        ).trim();
-
-        // Copy corto primero, luego copy largo, luego copy genérico
-        const copy = String(
-          map["copy corto"] ?? map["copy largo"] ?? map["copy"] ?? ""
-        ).trim();
-
+        const titulo = String(map["concepto"] ?? map["hook"] ?? map["título"] ?? map["titulo"] ?? "").trim();
+        const copy = String(map["copy corto"] ?? map["copy largo"] ?? map["copy"] ?? "").trim();
         let _error: string | undefined;
         if (!fecha) _error = "Fecha inválida";
         else if (!red) _error = "Falta Red";
@@ -300,10 +316,6 @@ function ParrillaPage() {
         proyecto_id: proyectoId,
       };
 
-      console.log("[evaluacion] webhook root:", root);
-      console.log("[evaluacion] payload guardado:", evalPayload);
-      console.log("[evaluacion] payload.sugerencias antes de guardar:", evalPayload.sugerencias);
-
       sessionStorage.setItem(`evaluacion:${evalId}`, JSON.stringify(evalPayload));
 
       await supabase.from("proyectos").update({
@@ -341,6 +353,7 @@ function ParrillaPage() {
           </div>
         </div>
       )}
+
       <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={() => setView(prevMonth(view))}>
@@ -410,11 +423,20 @@ function ParrillaPage() {
                       {items.slice(0, 3).map((p) => (
                         <div
                           key={p.id}
-                          className="text-[10px] leading-tight px-1.5 py-1 rounded bg-primary/15 text-primary border-l-2 border-primary truncate"
+                          className="group/pub relative text-[10px] leading-tight px-1.5 py-1 rounded bg-primary/15 text-primary border-l-2 border-primary truncate"
                           title={p.titulo ?? ""}
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <span className="font-semibold uppercase tracking-wider mr-1">{p.red.slice(0,2)}</span>
                           {p.titulo}
+                          {/* Botón eliminar — aparece al hacer hover */}
+                          <button
+                            className="absolute right-0.5 top-0.5 opacity-0 group-hover/pub:opacity-100 transition p-0.5 rounded hover:bg-destructive/20"
+                            onClick={(e) => openDeletePublicacion(p, e)}
+                            title="Eliminar publicación"
+                          >
+                            <X className="h-2.5 w-2.5 text-destructive" />
+                          </button>
                         </div>
                       ))}
                       {items.length > 3 && (
@@ -431,6 +453,7 @@ function ParrillaPage() {
 
       {isLoading && <div className="text-xs text-muted-foreground mt-3">Cargando publicaciones…</div>}
 
+      {/* Dialog nueva publicación */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
@@ -478,6 +501,7 @@ function ParrillaPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog importar Excel */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
@@ -525,6 +549,24 @@ function ParrillaPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* AlertDialog eliminar publicación */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar publicación?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará <strong>{deletePublicacion?.titulo}</strong> del {deletePublicacion?.fecha}. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeletePublicacion} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleting ? "Eliminando…" : "Sí, eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

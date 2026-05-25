@@ -53,6 +53,17 @@ function SugerenciasPage() {
   if (isLoading) return <div className="text-sm text-muted-foreground">Cargando sugerencias…</div>;
 
   const rawSug = ((evaluacion?.sugerencias as unknown) as any[]) ?? [];
+  console.log("[sugerencias] evaluacion:", evaluacion);
+  console.log("[sugerencias] rawSug:", rawSug);
+
+  const normalizaImpacto = (v: any): string => {
+    const s = String(v ?? "").toLowerCase();
+    if (s.includes("alt")) return "Alto";
+    if (s.includes("baj") || s === "low") return "Bajo";
+    if (s) return "Medio";
+    return "Medio";
+  };
+
   const sugerencias: Sug[] = rawSug.map((s) => {
     if (typeof s === "string") {
       return { titulo: s, descripcion: "", impacto: "Medio" };
@@ -60,7 +71,7 @@ function SugerenciasPage() {
     return {
       titulo: s?.titulo ?? s?.title ?? s?.nombre ?? "Sugerencia",
       descripcion: s?.descripcion ?? s?.description ?? s?.detalle ?? "",
-      impacto: s?.impacto ?? s?.impact ?? "Medio",
+      impacto: normalizaImpacto(s?.impacto ?? s?.impact ?? s?.prioridad ?? s?.priority),
       guion_etv: s?.guion_etv ?? s?.guion ?? undefined,
     };
   });

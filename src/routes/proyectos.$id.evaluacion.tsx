@@ -84,7 +84,7 @@ function EvaluacionPage() {
               Análisis sintético de la parrilla en base a {criterios.length} criterios clave. Revisa las barras
               para identificar dónde apretar y consulta las sugerencias para próximos pasos.
             </p>
-            <Link to="/proyectos/$id/sugerencias" params={{ id }} search={{ evalId: evaluacion.id }}>
+            <Link to="/proyectos/$id/sugerencias" params={{ id }} search={{ evalId: evalId ?? evaluacion.id }}>
               <Button className="mt-5 gradient-primary glow-primary">
                 <Sparkles className="h-4 w-4 mr-2" />
                 Ver sugerencias

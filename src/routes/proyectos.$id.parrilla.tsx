@@ -183,8 +183,11 @@ function ParrillaPage() {
         descripcion: v?.observacion ?? v?.descripcion ?? "",
       }));
 
+      const evalId = `local-${Date.now()}`;
+
       // Fallback: algunos webhooks devuelven sugerencias/alertas/resumen en la raíz
       const evalPayload = {
+        id: evalId,
         puntuacion_global: Number(evaluacion.puntuacion_global ?? root?.puntuacion_global ?? 0),
         nivel_global: evaluacion.nivel_global ?? root?.nivel_global,
         criterios: criteriosArr,
@@ -197,8 +200,8 @@ function ParrillaPage() {
 
       console.log("[evaluacion] webhook root:", root);
       console.log("[evaluacion] payload guardado:", evalPayload);
+      console.log("[evaluacion] payload.sugerencias antes de guardar:", evalPayload.sugerencias);
 
-      const evalId = `local-${Date.now()}`;
       sessionStorage.setItem(`evaluacion:${evalId}`, JSON.stringify(evalPayload));
 
       await supabase.from("proyectos").update({

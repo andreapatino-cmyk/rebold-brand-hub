@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Globe, ArrowRight, Sparkles } from "lucide-react";
+import { Plus, Globe, ArrowRight, Sparkles, Pencil, Trash2, MoreVertical } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
@@ -12,6 +12,13 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TeamDialog } from "@/components/TeamDialog";
 import { toast } from "sonner";
 
@@ -72,6 +79,7 @@ function ProyectosPage() {
     },
   });
 
+  // --- Crear proyecto ---
   const [open, setOpen] = useState(false);
   const [nombre, setNombre] = useState("");
   const [pais, setPais] = useState("");
@@ -97,6 +105,66 @@ function ProyectosPage() {
     toast.success("Proyecto creado");
     setOpen(false);
     setNombre(""); setPais(""); setSelRedes(["Instagram"]);
+    qc.invalidateQueries({ queryKey: ["proyectos"] });
+  };
+
+  // --- Editar proyecto ---
+  const [editOpen, setEditOpen] = useState(false);
+  const [editProyecto, setEditProyecto] = useState<any>(null);
+  const [editNombre, setEditNombre] = useState("");
+  const [editPais, setEditPais] = useState("");
+  const [editRedes, setEditRedes] = useState<string[]>([]);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const openEdit = (p: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditProyecto(p);
+    setEditNombre(p.nombre);
+    setEditPais(p.pais ?? "");
+    setEditRedes(p.redes ?? []);
+    setEditOpen(true);
+  };
+
+  const toggleEdit = (r: string) =>
+    setEditRedes((cur) => cur.includes(r) ? cur.filter((x) => x !== r) : [...cur, r]);
+
+  const saveEdit = async () => {
+    if (!editNombre.trim()) return toast.error("El nombre es obligatorio");
+    setEditSaving(true);
+    const { error } = await supabase.from("proyectos").update({
+      nombre: editNombre.trim(),
+      pais: editPais.trim() || null,
+      redes: editRedes,
+      updated_at: new Date().toISOString(),
+    }).eq("id", editProyecto.id);
+    setEditSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Proyecto actualizado");
+    setEditOpen(false);
+    qc.invalidateQueries({ queryKey: ["proyectos"] });
+  };
+
+  // --- Eliminar proyecto ---
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteProyecto, setDeleteProyecto] = useState<any>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const openDelete = (p: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDeleteProyecto(p);
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteProyecto) return;
+    setDeleting(true);
+    const { error } = await supabase.from("proyectos").delete().eq("id", deleteProyecto.id);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success("Proyecto eliminado");
+    setDeleteOpen(false);
     qc.invalidateQueries({ queryKey: ["proyectos"] });
   };
 
@@ -128,7 +196,7 @@ function ProyectosPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>País</Label>
-                    <Input value={pais} onChange={(e) => setPais(e.target.value)} placeholder="España" />
+                    <Input value={pais} onChange={(e) => setPais(e.target.value)} placeholder="Colombia" />
                   </div>
                   <div className="space-y-2">
                     <Label>Redes activas</Label>
@@ -136,16 +204,11 @@ function ProyectosPage() {
                       {REDES.map((r) => {
                         const active = selRedes.includes(r);
                         return (
-                          <button
-                            type="button"
-                            key={r}
-                            onClick={() => toggle(r)}
+                          <button type="button" key={r} onClick={() => toggle(r)}
                             className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                              active
-                                ? "bg-primary text-primary-foreground border-primary"
-                                : "bg-muted text-muted-foreground border-border hover:border-primary/50"
-                            }`}
-                          >
+                              active ? "bg-primary text-primary-foreground border-primary"
+                                     : "bg-muted text-muted-foreground border-border hover:border-primary/50"
+                            }`}>
                             {r}
                           </button>
                         );
@@ -163,7 +226,6 @@ function ProyectosPage() {
           </div>
         </div>
 
-
         {isLoading ? (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {[...Array(3)].map((_, i) => (
@@ -175,15 +237,30 @@ function ProyectosPage() {
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {proyectos.map((p) => (
-              <Link
-                key={p.id}
-                to="/proyectos/$id"
-                params={{ id: p.id }}
-                className="group relative rounded-xl bg-card border border-border p-5 hover:border-primary/60 transition overflow-hidden"
-              >
+              <div key={p.id} className="group relative rounded-xl bg-card border border-border hover:border-primary/60 transition overflow-hidden">
                 <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-primary/10 blur-2xl opacity-0 group-hover:opacity-100 transition" />
-                <div className="relative">
-                  <div className="flex items-start justify-between">
+
+                {/* Menú de acciones */}
+                <div className="absolute top-3 right-3 z-10" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <button className="p-1.5 rounded-lg hover:bg-muted transition opacity-0 group-hover:opacity-100">
+                        <MoreVertical className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={(e) => openEdit(p, e as any)}>
+                        <Pencil className="h-4 w-4 mr-2" /> Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={(e) => openDelete(p, e as any)} className="text-destructive focus:text-destructive">
+                        <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                <Link to="/proyectos/$id" params={{ id: p.id }} className="block p-5 relative">
+                  <div className="flex items-start justify-between pr-6">
                     <div>
                       <h3 className="font-display font-semibold text-lg leading-tight">{p.nombre}</h3>
                       {p.pais && (
@@ -209,12 +286,72 @@ function ProyectosPage() {
                       {estadoLabel(p.estado_ultima_parrilla)}
                     </span>
                   </div>
-                </div>
-              </Link>
+                </Link>
+              </div>
             ))}
           </div>
         )}
       </div>
+
+      {/* Dialog Editar */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar proyecto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nombre de la marca</Label>
+              <Input value={editNombre} onChange={(e) => setEditNombre(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>País</Label>
+              <Input value={editPais} onChange={(e) => setEditPais(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Redes activas</Label>
+              <div className="flex flex-wrap gap-2">
+                {REDES.map((r) => {
+                  const active = editRedes.includes(r);
+                  return (
+                    <button type="button" key={r} onClick={() => toggleEdit(r)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                        active ? "bg-primary text-primary-foreground border-primary"
+                               : "bg-muted text-muted-foreground border-border hover:border-primary/50"
+                      }`}>
+                      {r}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>
+            <Button onClick={saveEdit} disabled={editSaving} className="gradient-primary">
+              {editSaving ? "Guardando…" : "Guardar cambios"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* AlertDialog Eliminar */}
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar proyecto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará <strong>{deleteProyecto?.nombre}</strong> y todas sus parrillas, publicaciones y evaluaciones. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              {deleting ? "Eliminando…" : "Sí, eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }

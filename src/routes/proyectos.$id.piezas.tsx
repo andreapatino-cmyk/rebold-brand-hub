@@ -151,13 +151,8 @@ function PiezasPage() {
         },
       };
 
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`Webhook ${res.status}`);
-      const raw = await res.text();
+      const proxied = await callProxy({ data: payload });
+      const raw = (proxied as { raw?: string })?.raw ?? "";
       let parsed: unknown = null;
       try { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = raw; }
       const evalObj = normalizeEval(parsed);

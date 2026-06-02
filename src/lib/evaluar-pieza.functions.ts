@@ -14,11 +14,5 @@ export const evaluarPiezaProxy = createServerFn({ method: "POST" })
     if (!res.ok) {
       throw new Error(`Webhook ${res.status}: ${text.slice(0, 200)}`);
     }
-    let parsed: unknown = null;
-    try {
-      parsed = text ? JSON.parse(text) : null;
-    } catch {
-      parsed = text;
-    }
-    return { data: parsed };
+    return { raw: text };
   });

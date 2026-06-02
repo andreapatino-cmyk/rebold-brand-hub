@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { LayoutGrid, Upload, Sparkles, Loader2, Trash2, Image as ImageIcon, Video, X } from "lucide-react";
@@ -6,13 +7,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { evaluarPiezaProxy } from "@/lib/evaluar-pieza.functions";
 
 export const Route = createFileRoute("/proyectos/$id/piezas")({
   component: PiezasPage,
 });
 
-const WEBHOOK_URL = "https://rebold2.app.n8n.cloud/webhook/evaluar-pieza";
 const ACCEPT = "image/jpeg,image/png,image/webp,video/mp4";
+
 
 interface Pieza {
   id: string;
@@ -32,6 +34,7 @@ interface Criterio { nombre: string; score: number; descripcion?: string }
 function PiezasPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
+  const callProxy = useServerFn(evaluarPiezaProxy);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [evaluatingId, setEvaluatingId] = useState<string | null>(null);
@@ -148,13 +151,8 @@ function PiezasPage() {
         },
       };
 
-      const res = await fetch(WEBHOOK_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(`Webhook ${res.status}`);
-      const raw = await res.text();
+      const proxied = await callProxy({ data: payload });
+      const raw = (proxied as { raw?: string })?.raw ?? "";
       let parsed: unknown = null;
       try { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = raw; }
       const evalObj = normalizeEval(parsed);

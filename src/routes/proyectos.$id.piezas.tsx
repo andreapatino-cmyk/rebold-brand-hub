@@ -34,6 +34,7 @@ interface Criterio { nombre: string; score: number; descripcion?: string }
 function PiezasPage() {
   const { id } = Route.useParams();
   const qc = useQueryClient();
+  const callProxy = useServerFn(evaluarPiezaProxy);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [evaluatingId, setEvaluatingId] = useState<string | null>(null);

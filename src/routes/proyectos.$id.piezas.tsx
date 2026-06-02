@@ -160,7 +160,7 @@ function PiezasPage() {
       const evalObj = normalizeEval(parsed);
 
       const { error: upErr } = await supabase.from("piezas")
-        .update({ evaluacion: evalObj, puntuacion_global: evalObj.puntuacion_global ?? null })
+        .update({ evaluacion: evalObj as unknown as Record<string, unknown>, puntuacion_global: evalObj.puntuacion_global ?? null })
         .eq("id", p.id);
       if (upErr) throw upErr;
 

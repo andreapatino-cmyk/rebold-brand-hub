@@ -148,6 +148,45 @@ export type Database = {
           },
         ]
       }
+      piezas: {
+        Row: {
+          created_at: string
+          evaluacion: Json | null
+          id: string
+          mime_type: string | null
+          nombre: string | null
+          proyecto_id: string
+          puntuacion_global: number | null
+          storage_path: string | null
+          tipo: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          evaluacion?: Json | null
+          id?: string
+          mime_type?: string | null
+          nombre?: string | null
+          proyecto_id: string
+          puntuacion_global?: number | null
+          storage_path?: string | null
+          tipo: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          evaluacion?: Json | null
+          id?: string
+          mime_type?: string | null
+          nombre?: string | null
+          proyecto_id?: string
+          puntuacion_global?: number | null
+          storage_path?: string | null
+          tipo?: string
+          url?: string
+        }
+        Relationships: []
+      }
       proyectos: {
         Row: {
           created_at: string

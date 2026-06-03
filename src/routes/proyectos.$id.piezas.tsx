@@ -143,6 +143,8 @@ function PiezasPage() {
           pais: proyecto.pais,
           redes: proyecto.redes,
         } : { id },
+        imagen_base64: fileBase64,
+        imagen_mime_type: p.mime_type,
         archivo: {
           nombre: p.nombre,
           tipo: p.tipo,

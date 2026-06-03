@@ -142,6 +142,18 @@ function PiezasPage() {
         }
       }
 
+      // Lee preferencias y vetos del cliente desde memoria_cliente
+      const { data: memoriaRows } = await supabase
+        .from("memoria_cliente")
+        .select("clave, valor")
+        .eq("proyecto_id", id);
+      const preferencias = (memoriaRows ?? [])
+        .filter((m) => m.clave === "preferencia")
+        .map((m) => m.valor);
+      const vetos = (memoriaRows ?? [])
+        .filter((m) => m.clave === "veto")
+        .map((m) => m.valor);
+
       const payload = {
         pieza_id: p.id,
         proyecto: proyecto ? {
@@ -149,7 +161,9 @@ function PiezasPage() {
           nombre: proyecto.nombre,
           pais: proyecto.pais,
           redes: proyecto.redes,
-        } : { id },
+          preferencias,
+          vetos,
+        } : { id, preferencias, vetos },
         imagen_base64: fileBase64,
         imagen_mime_type: outMime,
         archivo: {

@@ -127,12 +127,19 @@ function PiezasPage() {
   async function evaluarPieza(p: Pieza) {
     setEvaluatingId(p.id);
     try {
-      // Download file from storage and convert to base64
+      // Download file from storage, resize images, convert to base64
       let fileBase64 = "";
+      let outMime: string = p.mime_type || (p.tipo === "video" ? "video/mp4" : "image/jpeg");
       if (p.storage_path) {
         const { data: blob, error: dlErr } = await supabase.storage.from("piezas").download(p.storage_path);
         if (dlErr) throw dlErr;
-        fileBase64 = await blobToBase64(blob);
+        if (p.tipo === "image") {
+          const resized = await resizeImageBlob(blob, 1024);
+          fileBase64 = await blobToBase64(resized.blob);
+          outMime = resized.mime;
+        } else {
+          fileBase64 = await blobToBase64(blob);
+        }
       }
 
       const payload = {
@@ -144,11 +151,11 @@ function PiezasPage() {
           redes: proyecto.redes,
         } : { id },
         imagen_base64: fileBase64,
-        imagen_mime_type: p.mime_type,
+        imagen_mime_type: outMime,
         archivo: {
           nombre: p.nombre,
           tipo: p.tipo,
-          mime_type: p.mime_type,
+          mime_type: outMime,
           base64: fileBase64,
         },
       };
@@ -330,6 +337,36 @@ function EvalView({ pieza }: { pieza: Pieza }) {
 }
 
 // --- helpers ---
+
+function resizeImageBlob(blob: Blob, maxWidth: number): Promise<{ blob: Blob; mime: string }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { URL.revokeObjectURL(url); return resolve({ blob, mime: blob.type || "image/jpeg" }); }
+        ctx.drawImage(img, 0, 0, w, h);
+        const mime = blob.type === "image/png" ? "image/png" : "image/jpeg";
+        canvas.toBlob((out) => {
+          URL.revokeObjectURL(url);
+          if (!out) return resolve({ blob, mime: blob.type || "image/jpeg" });
+          resolve({ blob: out, mime });
+        }, mime, 0.85);
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {

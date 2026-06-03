@@ -43,6 +43,7 @@ function ProyectoLayout() {
   const tabs = [
     { to: "/proyectos/$id/parrilla" as const, label: "Parrilla", icon: Calendar, key: "parrilla" },
     { to: "/proyectos/$id/piezas" as const, label: "Piezas", icon: LayoutGrid, key: "piezas" },
+    { to: "/proyectos/$id/memoria" as const, label: "Memoria", icon: Brain, key: "memoria" },
   ];
 
   const isActive = (key: string) => {

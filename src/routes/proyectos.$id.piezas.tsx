@@ -338,6 +338,36 @@ function EvalView({ pieza }: { pieza: Pieza }) {
 
 // --- helpers ---
 
+function resizeImageBlob(blob: Blob, maxWidth: number): Promise<{ blob: Blob; mime: string }> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const scale = img.width > maxWidth ? maxWidth / img.width : 1;
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) { URL.revokeObjectURL(url); return resolve({ blob, mime: blob.type || "image/jpeg" }); }
+        ctx.drawImage(img, 0, 0, w, h);
+        const mime = blob.type === "image/png" ? "image/png" : "image/jpeg";
+        canvas.toBlob((out) => {
+          URL.revokeObjectURL(url);
+          if (!out) return resolve({ blob, mime: blob.type || "image/jpeg" });
+          resolve({ blob: out, mime });
+        }, mime, 0.85);
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = (e) => { URL.revokeObjectURL(url); reject(e); };
+    img.src = url;
+  });
+}
+
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

@@ -127,12 +127,19 @@ function PiezasPage() {
   async function evaluarPieza(p: Pieza) {
     setEvaluatingId(p.id);
     try {
-      // Download file from storage and convert to base64
+      // Download file from storage, resize images, convert to base64
       let fileBase64 = "";
+      let outMime: string = p.mime_type || (p.tipo === "video" ? "video/mp4" : "image/jpeg");
       if (p.storage_path) {
         const { data: blob, error: dlErr } = await supabase.storage.from("piezas").download(p.storage_path);
         if (dlErr) throw dlErr;
-        fileBase64 = await blobToBase64(blob);
+        if (p.tipo === "image") {
+          const resized = await resizeImageBlob(blob, 1024);
+          fileBase64 = await blobToBase64(resized.blob);
+          outMime = resized.mime;
+        } else {
+          fileBase64 = await blobToBase64(blob);
+        }
       }
 
       const payload = {
@@ -144,11 +151,11 @@ function PiezasPage() {
           redes: proyecto.redes,
         } : { id },
         imagen_base64: fileBase64,
-        imagen_mime_type: p.mime_type,
+        imagen_mime_type: outMime,
         archivo: {
           nombre: p.nombre,
           tipo: p.tipo,
-          mime_type: p.mime_type,
+          mime_type: outMime,
           base64: fileBase64,
         },
       };

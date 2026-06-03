@@ -16,6 +16,7 @@ import { Route as ProyectosIdRouteImport } from './routes/proyectos.$id'
 import { Route as ProyectosIdSugerenciasRouteImport } from './routes/proyectos.$id.sugerencias'
 import { Route as ProyectosIdPiezasRouteImport } from './routes/proyectos.$id.piezas'
 import { Route as ProyectosIdParrillaRouteImport } from './routes/proyectos.$id.parrilla'
+import { Route as ProyectosIdMemoriaRouteImport } from './routes/proyectos.$id.memoria'
 import { Route as ProyectosIdEvaluacionRouteImport } from './routes/proyectos.$id.evaluacion'
 
 const LoginRoute = LoginRouteImport.update({
@@ -53,6 +54,11 @@ const ProyectosIdParrillaRoute = ProyectosIdParrillaRouteImport.update({
   path: '/parrilla',
   getParentRoute: () => ProyectosIdRoute,
 } as any)
+const ProyectosIdMemoriaRoute = ProyectosIdMemoriaRouteImport.update({
+  id: '/memoria',
+  path: '/memoria',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
 const ProyectosIdEvaluacionRoute = ProyectosIdEvaluacionRouteImport.update({
   id: '/evaluacion',
   path: '/evaluacion',
@@ -65,6 +71,7 @@ export interface FileRoutesByFullPath {
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
   '/proyectos/': typeof ProyectosIndexRoute
   '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
+  '/proyectos/$id/memoria': typeof ProyectosIdMemoriaRoute
   '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
   '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
   '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByTo {
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
   '/proyectos': typeof ProyectosIndexRoute
   '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
+  '/proyectos/$id/memoria': typeof ProyectosIdMemoriaRoute
   '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
   '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
   '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
@@ -86,6 +94,7 @@ export interface FileRoutesById {
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
   '/proyectos/': typeof ProyectosIndexRoute
   '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
+  '/proyectos/$id/memoria': typeof ProyectosIdMemoriaRoute
   '/proyectos/$id/parrilla': typeof ProyectosIdParrillaRoute
   '/proyectos/$id/piezas': typeof ProyectosIdPiezasRoute
   '/proyectos/$id/sugerencias': typeof ProyectosIdSugerenciasRoute
@@ -98,6 +107,7 @@ export interface FileRouteTypes {
     | '/proyectos/$id'
     | '/proyectos/'
     | '/proyectos/$id/evaluacion'
+    | '/proyectos/$id/memoria'
     | '/proyectos/$id/parrilla'
     | '/proyectos/$id/piezas'
     | '/proyectos/$id/sugerencias'
@@ -108,6 +118,7 @@ export interface FileRouteTypes {
     | '/proyectos/$id'
     | '/proyectos'
     | '/proyectos/$id/evaluacion'
+    | '/proyectos/$id/memoria'
     | '/proyectos/$id/parrilla'
     | '/proyectos/$id/piezas'
     | '/proyectos/$id/sugerencias'
@@ -118,6 +129,7 @@ export interface FileRouteTypes {
     | '/proyectos/$id'
     | '/proyectos/'
     | '/proyectos/$id/evaluacion'
+    | '/proyectos/$id/memoria'
     | '/proyectos/$id/parrilla'
     | '/proyectos/$id/piezas'
     | '/proyectos/$id/sugerencias'
@@ -181,6 +193,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProyectosIdParrillaRouteImport
       parentRoute: typeof ProyectosIdRoute
     }
+    '/proyectos/$id/memoria': {
+      id: '/proyectos/$id/memoria'
+      path: '/memoria'
+      fullPath: '/proyectos/$id/memoria'
+      preLoaderRoute: typeof ProyectosIdMemoriaRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
     '/proyectos/$id/evaluacion': {
       id: '/proyectos/$id/evaluacion'
       path: '/evaluacion'
@@ -193,6 +212,7 @@ declare module '@tanstack/react-router' {
 
 interface ProyectosIdRouteChildren {
   ProyectosIdEvaluacionRoute: typeof ProyectosIdEvaluacionRoute
+  ProyectosIdMemoriaRoute: typeof ProyectosIdMemoriaRoute
   ProyectosIdParrillaRoute: typeof ProyectosIdParrillaRoute
   ProyectosIdPiezasRoute: typeof ProyectosIdPiezasRoute
   ProyectosIdSugerenciasRoute: typeof ProyectosIdSugerenciasRoute
@@ -200,6 +220,7 @@ interface ProyectosIdRouteChildren {
 
 const ProyectosIdRouteChildren: ProyectosIdRouteChildren = {
   ProyectosIdEvaluacionRoute: ProyectosIdEvaluacionRoute,
+  ProyectosIdMemoriaRoute: ProyectosIdMemoriaRoute,
   ProyectosIdParrillaRoute: ProyectosIdParrillaRoute,
   ProyectosIdPiezasRoute: ProyectosIdPiezasRoute,
   ProyectosIdSugerenciasRoute: ProyectosIdSugerenciasRoute,

@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Globe, ArrowRight, Sparkles, Pencil, Trash2, MoreVertical } from "lucide-react";
+import { Plus, Globe, ArrowRight, Sparkles, Pencil, Trash2, MoreVertical, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
@@ -39,6 +39,52 @@ function estadoStyles(estado: string | null) {
 
 function estadoLabel(e: string | null) {
   return ({ aprobada: "Aprobada", en_revision: "En revisión", pendiente: "Pendiente" } as any)[e ?? "pendiente"] ?? "Pendiente";
+}
+
+function PilaresInput({ value, onChange }: { value: string[]; onChange: (v: string[]) => void }) {
+  const [draft, setDraft] = useState("");
+  const add = () => {
+    const t = draft.trim();
+    if (!t) return;
+    if (value.includes(t)) { setDraft(""); return; }
+    onChange([...value, t]);
+    setDraft("");
+  };
+  const remove = (p: string) => onChange(value.filter((x) => x !== p));
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { e.preventDefault(); add(); }
+          }}
+          placeholder="Ej. Educación, Behind the scenes…"
+        />
+        <Button type="button" variant="outline" size="icon" onClick={add} aria-label="Agregar pilar">
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {value.map((p) => (
+            <Badge key={p} variant="secondary" className="gap-1 pr-1">
+              {p}
+              <button
+                type="button"
+                onClick={() => remove(p)}
+                className="rounded-full p-0.5 hover:bg-muted-foreground/20 transition"
+                aria-label={`Eliminar ${p}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function ProyectosPage() {
@@ -84,6 +130,7 @@ function ProyectosPage() {
   const [nombre, setNombre] = useState("");
   const [pais, setPais] = useState("");
   const [selRedes, setSelRedes] = useState<string[]>(["Instagram"]);
+  const [pilares, setPilares] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const toggle = (r: string) =>
@@ -99,12 +146,13 @@ function ProyectosPage() {
       nombre: nombre.trim(),
       pais: pais.trim() || null,
       redes: selRedes,
+      pilares,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Proyecto creado");
     setOpen(false);
-    setNombre(""); setPais(""); setSelRedes(["Instagram"]);
+    setNombre(""); setPais(""); setSelRedes(["Instagram"]); setPilares([]);
     qc.invalidateQueries({ queryKey: ["proyectos"] });
   };
 
@@ -114,6 +162,7 @@ function ProyectosPage() {
   const [editNombre, setEditNombre] = useState("");
   const [editPais, setEditPais] = useState("");
   const [editRedes, setEditRedes] = useState<string[]>([]);
+  const [editPilares, setEditPilares] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
 
   const openEdit = (p: any, e: React.MouseEvent) => {
@@ -123,6 +172,7 @@ function ProyectosPage() {
     setEditNombre(p.nombre);
     setEditPais(p.pais ?? "");
     setEditRedes(p.redes ?? []);
+    setEditPilares(p.pilares ?? []);
     setEditOpen(true);
   };
 
@@ -136,6 +186,7 @@ function ProyectosPage() {
       nombre: editNombre.trim(),
       pais: editPais.trim() || null,
       redes: editRedes,
+      pilares: editPilares,
       updated_at: new Date().toISOString(),
     }).eq("id", editProyecto.id);
     setEditSaving(false);
@@ -214,6 +265,10 @@ function ProyectosPage() {
                         );
                       })}
                     </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Pilares de contenido <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                    <PilaresInput value={pilares} onChange={setPilares} />
                   </div>
                 </div>
                 <DialogFooter>
@@ -324,6 +379,10 @@ function ProyectosPage() {
                   );
                 })}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Pilares de contenido <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <PilaresInput value={editPilares} onChange={setEditPilares} />
             </div>
           </div>
           <DialogFooter>

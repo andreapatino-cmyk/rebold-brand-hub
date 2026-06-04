@@ -162,6 +162,7 @@ function ProyectosPage() {
   const [editNombre, setEditNombre] = useState("");
   const [editPais, setEditPais] = useState("");
   const [editRedes, setEditRedes] = useState<string[]>([]);
+  const [editPilares, setEditPilares] = useState<string[]>([]);
   const [editSaving, setEditSaving] = useState(false);
 
   const openEdit = (p: any, e: React.MouseEvent) => {
@@ -171,6 +172,7 @@ function ProyectosPage() {
     setEditNombre(p.nombre);
     setEditPais(p.pais ?? "");
     setEditRedes(p.redes ?? []);
+    setEditPilares(p.pilares ?? []);
     setEditOpen(true);
   };
 
@@ -184,6 +186,7 @@ function ProyectosPage() {
       nombre: editNombre.trim(),
       pais: editPais.trim() || null,
       redes: editRedes,
+      pilares: editPilares,
       updated_at: new Date().toISOString(),
     }).eq("id", editProyecto.id);
     setEditSaving(false);

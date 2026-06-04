@@ -130,6 +130,7 @@ function ProyectosPage() {
   const [nombre, setNombre] = useState("");
   const [pais, setPais] = useState("");
   const [selRedes, setSelRedes] = useState<string[]>(["Instagram"]);
+  const [pilares, setPilares] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
   const toggle = (r: string) =>
@@ -145,12 +146,13 @@ function ProyectosPage() {
       nombre: nombre.trim(),
       pais: pais.trim() || null,
       redes: selRedes,
+      pilares,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Proyecto creado");
     setOpen(false);
-    setNombre(""); setPais(""); setSelRedes(["Instagram"]);
+    setNombre(""); setPais(""); setSelRedes(["Instagram"]); setPilares([]);
     qc.invalidateQueries({ queryKey: ["proyectos"] });
   };
 

@@ -1,0 +1,1 @@
+ALTER TABLE public.proyectos ADD COLUMN IF NOT EXISTS pilares text[] NOT NULL DEFAULT '{}';

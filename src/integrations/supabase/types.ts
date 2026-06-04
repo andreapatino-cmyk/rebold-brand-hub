@@ -194,6 +194,7 @@ export type Database = {
           id: string
           nombre: string
           pais: string | null
+          pilares: string[]
           redes: string[]
           updated_at: string
           user_id: string
@@ -205,6 +206,7 @@ export type Database = {
           id?: string
           nombre: string
           pais?: string | null
+          pilares?: string[]
           redes?: string[]
           updated_at?: string
           user_id: string
@@ -216,6 +218,7 @@ export type Database = {
           id?: string
           nombre?: string
           pais?: string | null
+          pilares?: string[]
           redes?: string[]
           updated_at?: string
           user_id?: string

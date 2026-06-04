@@ -266,6 +266,10 @@ function ProyectosPage() {
                       })}
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <Label>Pilares de contenido <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                    <PilaresInput value={pilares} onChange={setPilares} />
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button onClick={create} disabled={saving} className="gradient-primary">

@@ -380,6 +380,10 @@ function ProyectosPage() {
                 })}
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>Pilares de contenido <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <PilaresInput value={editPilares} onChange={setEditPilares} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>

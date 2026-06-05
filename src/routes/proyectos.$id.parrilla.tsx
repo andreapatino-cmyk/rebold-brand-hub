@@ -162,6 +162,77 @@ function ParrillaPage() {
   // --- Evaluación ---
   const [evaluando, setEvaluando] = useState(false);
 
+  // --- Importar desde URL ---
+  const [urlOpen, setUrlOpen] = useState(false);
+  const [urlValue, setUrlValue] = useState("");
+  const [importingUrl, setImportingUrl] = useState(false);
+
+  const importarDesdeUrl = async () => {
+    const url = urlValue.trim();
+    if (!url) return toast.error("Pega una URL válida");
+    try { new URL(url); } catch { return toast.error("URL no válida"); }
+
+    setImportingUrl(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+    try {
+      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/scraping-parrilla", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
+      const text = await res.text();
+      let webhookJson: any = null;
+      try { webhookJson = text ? JSON.parse(text) : null; } catch { webhookJson = null; }
+
+      const root = Array.isArray(webhookJson) ? webhookJson[0] : webhookJson;
+      const evaluacion = root?.evaluacion ?? root;
+      if (!evaluacion || (evaluacion.puntuacion_global == null && !evaluacion.criterios)) {
+        throw new Error("El webhook no devolvió una evaluación válida.");
+      }
+
+      const criteriosObj = evaluacion.criterios ?? {};
+      const criteriosArr = Object.entries(criteriosObj).map(([k, v]: [string, any]) => ({
+        nombre: k,
+        score: Math.round(Number(v?.puntaje ?? v?.score ?? 0)) * 10,
+        nivel: v?.nivel,
+        descripcion: v?.observacion ?? v?.descripcion ?? "",
+      }));
+
+      const evalId = `local-${Date.now()}`;
+      const evalPayload = {
+        id: evalId,
+        puntuacion_global: Number(evaluacion.puntuacion_global ?? root?.puntuacion_global ?? 0),
+        nivel_global: evaluacion.nivel_global ?? root?.nivel_global,
+        criterios: criteriosArr,
+        alertas: evaluacion.alertas ?? root?.alertas ?? [],
+        sugerencias: evaluacion.sugerencias ?? root?.sugerencias ?? [],
+        resumen: evaluacion.resumen ?? root?.resumen ?? "",
+        parrilla_id: parrilla?.id,
+        proyecto_id: proyectoId,
+        origen_url: url,
+      };
+      sessionStorage.setItem(`evaluacion:${evalId}`, JSON.stringify(evalPayload));
+
+      setImportingUrl(false);
+      setUrlOpen(false);
+      setUrlValue("");
+      navigate({
+        to: "/proyectos/$id/evaluacion",
+        params: { id: proyectoId },
+        search: { evalId },
+      });
+    } catch (e: any) {
+      setImportingUrl(false);
+      if (e?.name === "AbortError") toast.error("El webhook tardó demasiado en responder.");
+      else toast.error(e?.message ?? "Error al importar desde URL");
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
+
   // --- Importar Excel ---
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importOpen, setImportOpen] = useState(false);

@@ -625,6 +625,36 @@ function ParrillaPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog importar desde URL */}
+      <Dialog open={urlOpen} onOpenChange={(o) => { if (!importingUrl) setUrlOpen(o); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Importar desde URL</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>URL pública</Label>
+            <Input
+              type="url"
+              placeholder="https://ejemplo.com/parrilla"
+              value={urlValue}
+              onChange={(e) => setUrlValue(e.target.value)}
+              disabled={importingUrl}
+              onKeyDown={(e) => { if (e.key === "Enter" && !importingUrl) importarDesdeUrl(); }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Analizaremos el contenido de la URL y generaremos una evaluación automática.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUrlOpen(false)} disabled={importingUrl}>Cancelar</Button>
+            <Button onClick={importarDesdeUrl} disabled={importingUrl} className="gradient-primary">
+              {importingUrl ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LinkIcon className="h-4 w-4 mr-2" />}
+              {importingUrl ? "Procesando…" : "Importar y evaluar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* AlertDialog eliminar publicación */}
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>

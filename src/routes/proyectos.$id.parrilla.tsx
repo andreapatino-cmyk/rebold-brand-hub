@@ -184,10 +184,19 @@ function ParrillaPage() {
       });
       if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
       const text = await res.text();
-      let webhookJson: any = null;
-      try { webhookJson = text ? JSON.parse(text) : null; } catch { webhookJson = null; }
+      if (!text) throw new Error("El webhook devolvió una respuesta vacía.");
+      let webhookJson: any;
+      try { webhookJson = JSON.parse(text); }
+      catch (e) { throw new Error("No se pudo parsear la respuesta del webhook como JSON."); }
+      // Algunos webhooks devuelven JSON doblemente serializado
+      if (typeof webhookJson === "string") {
+        try { webhookJson = JSON.parse(webhookJson); } catch { /* keep string */ }
+      }
 
-      const root = Array.isArray(webhookJson) ? webhookJson[0] : webhookJson;
+      let root = Array.isArray(webhookJson) ? webhookJson[0] : webhookJson;
+      if (typeof root === "string") {
+        try { root = JSON.parse(root); } catch { /* ignore */ }
+      }
       const evaluacion = root?.evaluacion ?? root;
       if (!evaluacion || (evaluacion.puntuacion_global == null && !evaluacion.criterios)) {
         throw new Error("El webhook no devolvió una evaluación válida.");

@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Upload, Trash2, X,
+  ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Upload, Trash2, X, Link as LinkIcon,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
@@ -161,6 +161,77 @@ function ParrillaPage() {
 
   // --- Evaluación ---
   const [evaluando, setEvaluando] = useState(false);
+
+  // --- Importar desde URL ---
+  const [urlOpen, setUrlOpen] = useState(false);
+  const [urlValue, setUrlValue] = useState("");
+  const [importingUrl, setImportingUrl] = useState(false);
+
+  const importarDesdeUrl = async () => {
+    const url = urlValue.trim();
+    if (!url) return toast.error("Pega una URL válida");
+    try { new URL(url); } catch { return toast.error("URL no válida"); }
+
+    setImportingUrl(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 90000);
+    try {
+      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/scraping-parrilla", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
+      const text = await res.text();
+      let webhookJson: any = null;
+      try { webhookJson = text ? JSON.parse(text) : null; } catch { webhookJson = null; }
+
+      const root = Array.isArray(webhookJson) ? webhookJson[0] : webhookJson;
+      const evaluacion = root?.evaluacion ?? root;
+      if (!evaluacion || (evaluacion.puntuacion_global == null && !evaluacion.criterios)) {
+        throw new Error("El webhook no devolvió una evaluación válida.");
+      }
+
+      const criteriosObj = evaluacion.criterios ?? {};
+      const criteriosArr = Object.entries(criteriosObj).map(([k, v]: [string, any]) => ({
+        nombre: k,
+        score: Math.round(Number(v?.puntaje ?? v?.score ?? 0)) * 10,
+        nivel: v?.nivel,
+        descripcion: v?.observacion ?? v?.descripcion ?? "",
+      }));
+
+      const evalId = `local-${Date.now()}`;
+      const evalPayload = {
+        id: evalId,
+        puntuacion_global: Number(evaluacion.puntuacion_global ?? root?.puntuacion_global ?? 0),
+        nivel_global: evaluacion.nivel_global ?? root?.nivel_global,
+        criterios: criteriosArr,
+        alertas: evaluacion.alertas ?? root?.alertas ?? [],
+        sugerencias: evaluacion.sugerencias ?? root?.sugerencias ?? [],
+        resumen: evaluacion.resumen ?? root?.resumen ?? "",
+        parrilla_id: parrilla?.id,
+        proyecto_id: proyectoId,
+        origen_url: url,
+      };
+      sessionStorage.setItem(`evaluacion:${evalId}`, JSON.stringify(evalPayload));
+
+      setImportingUrl(false);
+      setUrlOpen(false);
+      setUrlValue("");
+      navigate({
+        to: "/proyectos/$id/evaluacion",
+        params: { id: proyectoId },
+        search: { evalId },
+      });
+    } catch (e: any) {
+      setImportingUrl(false);
+      if (e?.name === "AbortError") toast.error("El webhook tardó demasiado en responder.");
+      else toast.error(e?.message ?? "Error al importar desde URL");
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
 
   // --- Importar Excel ---
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -382,6 +453,10 @@ function ParrillaPage() {
             <Upload className="h-4 w-4 mr-2" />
             Importar Excel
           </Button>
+          <Button variant="outline" onClick={() => setUrlOpen(true)}>
+            <LinkIcon className="h-4 w-4 mr-2" />
+            Importar desde URL
+          </Button>
           <Button onClick={evaluar} disabled={evaluando} className="gradient-primary glow-primary">
             {evaluando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             Evaluar parrilla
@@ -545,6 +620,36 @@ function ParrillaPage() {
             <Button onClick={confirmImport} disabled={importing} className="gradient-primary">
               {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
               Importar {importRows.filter((r) => !r._error).length}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog importar desde URL */}
+      <Dialog open={urlOpen} onOpenChange={(o) => { if (!importingUrl) setUrlOpen(o); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Importar desde URL</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <Label>URL pública</Label>
+            <Input
+              type="url"
+              placeholder="https://ejemplo.com/parrilla"
+              value={urlValue}
+              onChange={(e) => setUrlValue(e.target.value)}
+              disabled={importingUrl}
+              onKeyDown={(e) => { if (e.key === "Enter" && !importingUrl) importarDesdeUrl(); }}
+            />
+            <p className="text-xs text-muted-foreground">
+              Analizaremos el contenido de la URL y generaremos una evaluación automática.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUrlOpen(false)} disabled={importingUrl}>Cancelar</Button>
+            <Button onClick={importarDesdeUrl} disabled={importingUrl} className="gradient-primary">
+              {importingUrl ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <LinkIcon className="h-4 w-4 mr-2" />}
+              {importingUrl ? "Procesando…" : "Importar y evaluar"}
             </Button>
           </DialogFooter>
         </DialogContent>

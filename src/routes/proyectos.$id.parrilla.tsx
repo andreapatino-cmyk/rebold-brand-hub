@@ -183,10 +183,11 @@ function ParrillaPage() {
         signal: controller.signal,
       });
       if (!res.ok) throw new Error(`El webhook respondió con estado ${res.status}`);
-      const text = await res.text();
-      if (!text) throw new Error("El webhook devolvió una respuesta vacía.");
+      const raw = await res.text();
+      if (!raw) throw new Error("El webhook devolvió una respuesta vacía.");
+      const clean = raw.startsWith("=") ? raw.slice(1) : raw;
       let webhookJson: any;
-      try { webhookJson = JSON.parse(text); }
+      try { webhookJson = JSON.parse(clean); }
       catch (e) { throw new Error("No se pudo parsear la respuesta del webhook como JSON."); }
       // Algunos webhooks devuelven JSON doblemente serializado
       if (typeof webhookJson === "string") {

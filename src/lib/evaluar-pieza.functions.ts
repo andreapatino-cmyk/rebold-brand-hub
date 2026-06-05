@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-const WEBHOOK_URL = "https://rebold2.app.n8n.cloud/webhook/evaluar-pieza";
+const WEBHOOK_URL = "https://n8n-m0b3.onrender.com/webhook/evaluar-pieza";
 
 export const evaluarPiezaProxy = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => data as Record<string, unknown>)

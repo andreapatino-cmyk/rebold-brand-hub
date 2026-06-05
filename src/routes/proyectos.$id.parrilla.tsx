@@ -453,6 +453,10 @@ function ParrillaPage() {
             <Upload className="h-4 w-4 mr-2" />
             Importar Excel
           </Button>
+          <Button variant="outline" onClick={() => setUrlOpen(true)}>
+            <LinkIcon className="h-4 w-4 mr-2" />
+            Importar desde URL
+          </Button>
           <Button onClick={evaluar} disabled={evaluando} className="gradient-primary glow-primary">
             {evaluando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
             Evaluar parrilla

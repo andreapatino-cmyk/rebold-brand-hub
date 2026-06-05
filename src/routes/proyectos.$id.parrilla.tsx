@@ -269,7 +269,7 @@ function ParrillaPage() {
 
       let webhookJson: any = null;
       try {
-        const res = await fetch("https://rebold2.app.n8n.cloud/webhook/evaluar-parrilla", {
+        const res = await fetch("https://n8n-m0b3.onrender.com/webhook/evaluar-parrilla", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),

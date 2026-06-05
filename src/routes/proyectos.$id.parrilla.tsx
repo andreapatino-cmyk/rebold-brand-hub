@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Upload, Trash2, X,
+  ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Upload, Trash2, X, Link as LinkIcon,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";

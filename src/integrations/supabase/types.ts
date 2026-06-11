@@ -14,6 +14,91 @@ export type Database = {
   }
   public: {
     Tables: {
+      email_campanas: {
+        Row: {
+          asunto: string
+          created_at: string
+          estado: string
+          fecha: string
+          id: string
+          proyecto_id: string
+          segmento: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          asunto: string
+          created_at?: string
+          estado?: string
+          fecha: string
+          id?: string
+          proyecto_id: string
+          segmento?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          asunto?: string
+          created_at?: string
+          estado?: string
+          fecha?: string
+          id?: string
+          proyecto_id?: string
+          segmento?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_campanas_proyecto_id_fkey"
+            columns: ["proyecto_id"]
+            isOneToOne: false
+            referencedRelation: "proyectos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_flujos: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          id: string
+          nombre: string
+          proyecto_id: string
+          secuencia: Json
+          trigger: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          proyecto_id: string
+          secuencia?: Json
+          trigger?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          proyecto_id?: string
+          secuencia?: Json
+          trigger?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_flujos_proyecto_id_fkey"
+            columns: ["proyecto_id"]
+            isOneToOne: false
+            referencedRelation: "proyectos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       evaluaciones: {
         Row: {
           created_at: string

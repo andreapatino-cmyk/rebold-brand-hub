@@ -177,9 +177,25 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
       .from("memoria_cliente")
       .select("clave,valor")
       .eq("proyecto_id", proyectoId);
-    const preferencias = (data ?? []).filter((r: any) => r.clave === "preferencia").map((r: any) => r.valor);
-    const vetos = (data ?? []).filter((r: any) => r.clave === "veto").map((r: any) => r.valor);
-    return { preferencias, vetos };
+    const rows = data ?? [];
+    const preferencias = rows.filter((r: any) => r.clave === "preferencia").map((r: any) => r.valor);
+    const vetos = rows.filter((r: any) => r.clave === "veto").map((r: any) => r.valor);
+    const get = (k: string) => rows.find((r: any) => r.clave === k)?.valor ?? "";
+    return {
+      preferencias,
+      vetos,
+      industria: get("industria"),
+      tono_de_voz: get("tono_de_voz") || get("tono"),
+    };
+  }
+
+  async function leerProyecto() {
+    const { data } = await supabase
+      .from("proyectos")
+      .select("nombre,pais,pilares")
+      .eq("id", proyectoId)
+      .maybeSingle();
+    return data;
   }
 
   async function evaluarParrilla() {
@@ -209,23 +225,41 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
   async function generarParrilla() {
     setGenerando(true);
     try {
-      const memoria = await leerMemoria();
-      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/generar-parrilla-email", {
+      const [memoria, proyecto] = await Promise.all([leerMemoria(), leerProyecto()]);
+      const body = {
+        accion: "generar_parrilla",
+        proyecto: {
+          nombre_marca: proyecto?.nombre ?? "",
+          pais: proyecto?.pais ?? "",
+          industria: memoria.industria,
+          tono_de_voz: memoria.tono_de_voz,
+          pilares: proyecto?.pilares ?? [],
+          preferencias: memoria.preferencias,
+          vetos: memoria.vetos,
+        },
+        mes: view.m + 1,
+        anio: view.y,
+        flujos_actuales: [],
+        metricas: {},
+      };
+      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/email-marketing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          proyecto_id: proyectoId,
-          anio: view.y,
-          mes: view.m + 1,
-          memoria,
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Error al generar");
       const raw = await res.text();
       const clean = raw.startsWith("=") ? raw.slice(1) : raw;
       let data: any = null;
       try { data = JSON.parse(clean); } catch { /* sin payload aprovechable */ }
-      const items: any[] = Array.isArray(data?.campanas) ? data.campanas : Array.isArray(data) ? data : [];
+      if (typeof data === "string") {
+        try { data = JSON.parse(data); } catch { /* noop */ }
+      }
+      const root = Array.isArray(data) ? data[0] : data;
+      const items: any[] =
+        (Array.isArray(root?.resultado?.campanas) && root.resultado.campanas) ||
+        (Array.isArray(root?.campanas) && root.campanas) ||
+        (Array.isArray(root) ? root : []);
       if (items.length) {
         const rows = items
           .filter((x) => x && x.fecha && x.tipo && x.asunto)

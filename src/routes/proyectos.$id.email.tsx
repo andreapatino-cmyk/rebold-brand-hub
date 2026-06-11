@@ -478,7 +478,7 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
         .eq("proyecto_id", proyectoId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data ?? []) as Flujo[];
+      return (data ?? []) as unknown as Flujo[];
     },
   });
 

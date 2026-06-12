@@ -1,0 +1,25 @@
+
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.proyectos TO authenticated;
+GRANT ALL ON public.proyectos TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.workspaces TO authenticated;
+GRANT ALL ON public.workspaces TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.workspace_members TO authenticated;
+GRANT ALL ON public.workspace_members TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.workspace_invitations TO authenticated;
+GRANT ALL ON public.workspace_invitations TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.parrillas TO authenticated;
+GRANT ALL ON public.parrillas TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.publicaciones TO authenticated;
+GRANT ALL ON public.publicaciones TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.piezas TO authenticated;
+GRANT ALL ON public.piezas TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.evaluaciones TO authenticated;
+GRANT ALL ON public.evaluaciones TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.memoria_cliente TO authenticated;
+GRANT ALL ON public.memoria_cliente TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.feedback TO authenticated;
+GRANT ALL ON public.feedback TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.email_campanas TO authenticated;
+GRANT ALL ON public.email_campanas TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.email_flujos TO authenticated;
+GRANT ALL ON public.email_flujos TO service_role;

@@ -500,6 +500,7 @@ interface Flujo {
 
 function FlujosEmail({ proyectoId }: { proyectoId: string }) {
   const qc = useQueryClient();
+  const callWebhook = useServerFn(callN8nWebhook);
   const [generando, setGenerando] = useState(false);
 
   const { data: flujos = [], isLoading } = useQuery({

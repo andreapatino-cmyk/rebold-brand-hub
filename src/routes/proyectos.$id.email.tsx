@@ -639,6 +639,7 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
 /* ------------------ CUERPO DEL EMAIL ------------------ */
 
 function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
+  const callWebhook = useServerFn(callN8nWebhook);
   const [tipo, setTipo] = useState("promocional");
   const [objetivo, setObjetivo] = useState("");
   const [tono, setTono] = useState("cercano");

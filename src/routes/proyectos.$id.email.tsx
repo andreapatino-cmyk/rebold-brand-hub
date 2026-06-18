@@ -205,18 +205,18 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
     setEvaluando(true);
     try {
       const memoria = await leerMemoria();
-      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/evaluar-parrilla-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          proyecto_id: proyectoId,
-          anio: view.y,
-          mes: view.m + 1,
-          campanas,
-          memoria,
-        }),
+      await callWebhook({
+        data: {
+          path: "evaluar-parrilla-email",
+          payload: {
+            proyecto_id: proyectoId,
+            anio: view.y,
+            mes: view.m + 1,
+            campanas,
+            memoria,
+          },
+        },
       });
-      if (!res.ok) throw new Error("Error al evaluar");
       toast.success("Parrilla enviada a evaluación");
     } catch (e: any) {
       toast.error(e?.message ?? "Error");

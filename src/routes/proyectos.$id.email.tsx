@@ -657,17 +657,16 @@ function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
         .from("memoria_cliente").select("clave,valor").eq("proyecto_id", proyectoId);
       const preferencias = (memData ?? []).filter((r: any) => r.clave === "preferencia").map((r: any) => r.valor);
       const vetos = (memData ?? []).filter((r: any) => r.clave === "veto").map((r: any) => r.valor);
-      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/generar-cuerpo-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          proyecto_id: proyectoId,
-          tipo, objetivo, tono,
-          memoria: { preferencias, vetos },
-        }),
+      const { raw } = await callWebhook({
+        data: {
+          path: "generar-cuerpo-email",
+          payload: {
+            proyecto_id: proyectoId,
+            tipo, objetivo, tono,
+            memoria: { preferencias, vetos },
+          },
+        },
       });
-      if (!res.ok) throw new Error("Error generando el email");
-      const raw = await res.text();
       const clean = raw.startsWith("=") ? raw.slice(1) : raw;
       let texto = clean;
       try {

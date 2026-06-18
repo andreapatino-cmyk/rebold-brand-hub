@@ -534,13 +534,12 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
         .from("memoria_cliente").select("clave,valor").eq("proyecto_id", proyectoId);
       const preferencias = (memData ?? []).filter((r: any) => r.clave === "preferencia").map((r: any) => r.valor);
       const vetos = (memData ?? []).filter((r: any) => r.clave === "veto").map((r: any) => r.valor);
-      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/generar-flujos-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proyecto_id: proyectoId, memoria: { preferencias, vetos } }),
+      const { raw } = await callWebhook({
+        data: {
+          path: "generar-flujos-email",
+          payload: { proyecto_id: proyectoId, memoria: { preferencias, vetos } },
+        },
       });
-      if (!res.ok) throw new Error("Error al generar flujos");
-      const raw = await res.text();
       const clean = raw.startsWith("=") ? raw.slice(1) : raw;
       let data: any = null;
       try { data = JSON.parse(clean); } catch { /* */ }

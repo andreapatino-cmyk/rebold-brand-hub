@@ -19,6 +19,8 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { useServerFn } from "@tanstack/react-start";
+import { callN8nWebhook } from "@/lib/n8n-webhook.functions";
 
 export const Route = createFileRoute("/proyectos/$id/email")({
   component: EmailPage,
@@ -95,6 +97,7 @@ interface Campana {
 
 function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
   const qc = useQueryClient();
+  const callWebhook = useServerFn(callN8nWebhook);
   const today = new Date();
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
   const [open, setOpen] = useState(false);
@@ -202,18 +205,18 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
     setEvaluando(true);
     try {
       const memoria = await leerMemoria();
-      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/evaluar-parrilla-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          proyecto_id: proyectoId,
-          anio: view.y,
-          mes: view.m + 1,
-          campanas,
-          memoria,
-        }),
+      await callWebhook({
+        data: {
+          path: "evaluar-parrilla-email",
+          payload: {
+            proyecto_id: proyectoId,
+            anio: view.y,
+            mes: view.m + 1,
+            campanas,
+            memoria,
+          },
+        },
       });
-      if (!res.ok) throw new Error("Error al evaluar");
       toast.success("Parrilla enviada a evaluación");
     } catch (e: any) {
       toast.error(e?.message ?? "Error");
@@ -242,13 +245,9 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
         flujos_actuales: [],
         metricas: {},
       };
-      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/email-marketing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+      const { raw } = await callWebhook({
+        data: { path: "email-marketing", payload: body },
       });
-      if (!res.ok) throw new Error("Error al generar");
-      const raw = await res.text();
       const clean = raw.startsWith("=") ? raw.slice(1) : raw;
       let data: any = null;
       try { data = JSON.parse(clean); } catch { /* sin payload aprovechable */ }
@@ -501,6 +500,7 @@ interface Flujo {
 
 function FlujosEmail({ proyectoId }: { proyectoId: string }) {
   const qc = useQueryClient();
+  const callWebhook = useServerFn(callN8nWebhook);
   const [generando, setGenerando] = useState(false);
 
   const { data: flujos = [], isLoading } = useQuery({
@@ -534,13 +534,12 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
         .from("memoria_cliente").select("clave,valor").eq("proyecto_id", proyectoId);
       const preferencias = (memData ?? []).filter((r: any) => r.clave === "preferencia").map((r: any) => r.valor);
       const vetos = (memData ?? []).filter((r: any) => r.clave === "veto").map((r: any) => r.valor);
-      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/generar-flujos-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proyecto_id: proyectoId, memoria: { preferencias, vetos } }),
+      const { raw } = await callWebhook({
+        data: {
+          path: "generar-flujos-email",
+          payload: { proyecto_id: proyectoId, memoria: { preferencias, vetos } },
+        },
       });
-      if (!res.ok) throw new Error("Error al generar flujos");
-      const raw = await res.text();
       const clean = raw.startsWith("=") ? raw.slice(1) : raw;
       let data: any = null;
       try { data = JSON.parse(clean); } catch { /* */ }
@@ -640,6 +639,7 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
 /* ------------------ CUERPO DEL EMAIL ------------------ */
 
 function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
+  const callWebhook = useServerFn(callN8nWebhook);
   const [tipo, setTipo] = useState("promocional");
   const [objetivo, setObjetivo] = useState("");
   const [tono, setTono] = useState("cercano");
@@ -657,17 +657,16 @@ function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
         .from("memoria_cliente").select("clave,valor").eq("proyecto_id", proyectoId);
       const preferencias = (memData ?? []).filter((r: any) => r.clave === "preferencia").map((r: any) => r.valor);
       const vetos = (memData ?? []).filter((r: any) => r.clave === "veto").map((r: any) => r.valor);
-      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/generar-cuerpo-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          proyecto_id: proyectoId,
-          tipo, objetivo, tono,
-          memoria: { preferencias, vetos },
-        }),
+      const { raw } = await callWebhook({
+        data: {
+          path: "generar-cuerpo-email",
+          payload: {
+            proyecto_id: proyectoId,
+            tipo, objetivo, tono,
+            memoria: { preferencias, vetos },
+          },
+        },
       });
-      if (!res.ok) throw new Error("Error generando el email");
-      const raw = await res.text();
       const clean = raw.startsWith("=") ? raw.slice(1) : raw;
       let texto = clean;
       try {

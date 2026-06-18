@@ -245,13 +245,9 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
         flujos_actuales: [],
         metricas: {},
       };
-      const res = await fetch("https://n8n-m0b3.onrender.com/webhook/email-marketing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+      const { raw } = await callWebhook({
+        data: { path: "email-marketing", payload: body },
       });
-      if (!res.ok) throw new Error("Error al generar");
-      const raw = await res.text();
       const clean = raw.startsWith("=") ? raw.slice(1) : raw;
       let data: any = null;
       try { data = JSON.parse(clean); } catch { /* sin payload aprovechable */ }

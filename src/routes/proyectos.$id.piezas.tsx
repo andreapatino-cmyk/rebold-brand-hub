@@ -176,8 +176,9 @@ function PiezasPage() {
 
       const proxied = await callProxy({ data: payload });
       const raw = (proxied as { raw?: string })?.raw ?? "";
+      const clean = raw.startsWith("=") ? raw.slice(1) : raw;
       let parsed: unknown = null;
-      try { parsed = raw ? JSON.parse(raw) : null; } catch { parsed = raw; }
+      try { parsed = clean ? JSON.parse(clean) : null; } catch { parsed = clean; }
       const evalObj = normalizeEval(parsed);
 
       const { error: upErr } = await supabase.from("piezas")

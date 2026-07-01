@@ -273,11 +273,12 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
             fecha: String(x.fecha).slice(0, 10),
             tipo: String(x.tipo),
             asunto: String(x.asunto),
-            segmento: x.segmento ?? null,
+            segmento: x.segmento ?? x.audiencia ?? null,
+            razon: x.razon ?? x.razon_estrategica ?? x.motivo ?? null,
             estado: x.estado ?? "borrador",
           }));
         if (rows.length) {
-          const { error } = await supabase.from("email_campanas").insert(rows);
+          const { error } = await supabase.from("email_campanas").insert(rows as any);
           if (error) throw error;
           qc.invalidateQueries({ queryKey: ["email_campanas", proyectoId] });
           toast.success(`${rows.length} campañas generadas`);

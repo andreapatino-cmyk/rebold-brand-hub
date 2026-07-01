@@ -384,45 +384,69 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
       </div>
 
       {campanas.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card/40 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-background/40">
-              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="px-4 py-2">Fecha</th>
-                <th className="px-4 py-2">Tipo</th>
-                <th className="px-4 py-2">Asunto</th>
-                <th className="px-4 py-2">Segmento</th>
-                <th className="px-4 py-2">Estado</th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {campanas.map((c) => (
-                <tr key={c.id} className="border-t border-border/40 hover:bg-background/30">
-                  <td className="px-4 py-2 whitespace-nowrap">{c.fecha}</td>
-                  <td className="px-4 py-2">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${tipoColor(c.tipo)}`}>
-                      {tipoLabel(c.tipo)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2">
-                    <button className="hover:underline text-left" onClick={() => openEdit(c)}>{c.asunto}</button>
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground">{c.segmento || "—"}</td>
-                  <td className="px-4 py-2"><Badge variant="secondary">{c.estado}</Badge></td>
-                  <td className="px-4 py-2 text-right">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-wider">Leyenda:</span>
+            {TIPOS_EMAIL.map((t) => (
+              <span key={t.value} className="inline-flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${t.dot}`} />
+                {t.label}
+              </span>
+            ))}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {campanas.map((c) => (
+              <div
+                key={c.id}
+                className={`relative rounded-2xl border bg-card/40 p-4 pl-5 overflow-hidden hover:bg-background/40 transition ${tipoColor(c.tipo).replace(/bg-[^\s]+/g, "").trim()}`}
+              >
+                <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${tipoDot(c.tipo)}`} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tipoColor(c.tipo)}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${tipoDot(c.tipo)}`} />
+                        {tipoLabel(c.tipo)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{c.fecha}</span>
+                      <Badge variant="secondary" className="text-[10px]">{c.estado}</Badge>
+                    </div>
                     <button
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => delMut.mutate(c.id)}
-                      aria-label="Eliminar"
+                      className="block text-left font-semibold text-base leading-tight hover:underline"
+                      onClick={() => openEdit(c)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {c.asunto}
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-start gap-2 text-sm">
+                        <Users className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Audiencia</div>
+                          <div className="text-foreground">{c.segmento || <span className="text-muted-foreground italic">Sin segmento definido</span>}</div>
+                        </div>
+                      </div>
+                      {c.razon && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Lightbulb className="h-4 w-4 mt-0.5 text-amber-400 shrink-0" />
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Razón estratégica</div>
+                            <div className="text-muted-foreground">{c.razon}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    className="text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => delMut.mutate(c.id)}
+                    aria-label="Eliminar"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

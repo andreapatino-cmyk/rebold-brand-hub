@@ -133,12 +133,13 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
   const upsertMut = useMutation({
     mutationFn: async (c: Partial<Campana>) => {
       if (!c.fecha || !c.tipo || !c.asunto) throw new Error("Completa fecha, tipo y asunto");
-      const payload = {
+      const payload: any = {
         proyecto_id: proyectoId,
         fecha: c.fecha,
         tipo: c.tipo,
         asunto: c.asunto,
         segmento: c.segmento ?? null,
+        razon: c.razon ?? null,
         estado: c.estado ?? "borrador",
       };
       if (c.id) {

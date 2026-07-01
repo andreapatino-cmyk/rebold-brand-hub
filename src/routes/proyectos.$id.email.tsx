@@ -299,7 +299,7 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
     const fecha = day
       ? `${view.y}-${pad(view.m + 1)}-${pad(day)}`
       : `${view.y}-${pad(view.m + 1)}-${pad(today.getDate())}`;
-    setEditing({ fecha, tipo: "promocional", asunto: "", segmento: "", estado: "borrador" });
+    setEditing({ fecha, tipo: "promocional", asunto: "", segmento: "", razon: "", estado: "borrador" });
     setOpen(true);
   }
 

@@ -22,6 +22,7 @@ export type Database = {
           fecha: string
           id: string
           proyecto_id: string
+          razon: string | null
           segmento: string | null
           tipo: string
           updated_at: string
@@ -33,6 +34,7 @@ export type Database = {
           fecha: string
           id?: string
           proyecto_id: string
+          razon?: string | null
           segmento?: string | null
           tipo: string
           updated_at?: string
@@ -44,6 +46,7 @@ export type Database = {
           fecha?: string
           id?: string
           proyecto_id?: string
+          razon?: string | null
           segmento?: string | null
           tipo?: string
           updated_at?: string

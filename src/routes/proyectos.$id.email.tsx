@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Trash2,
-  Mail, GitBranch, FileText, BarChart3, Download, Workflow,
+  Mail, GitBranch, FileText, BarChart3, Download, Workflow, Users, Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,11 +27,11 @@ export const Route = createFileRoute("/proyectos/$id/email")({
 });
 
 const TIPOS_EMAIL = [
-  { value: "promocional", label: "Promocional", color: "bg-rose-500/15 text-rose-300 border-rose-500/30" },
-  { value: "educativo", label: "Educativo", color: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
-  { value: "relacional", label: "Relacional", color: "bg-violet-500/15 text-violet-300 border-violet-500/30" },
-  { value: "reactivacion", label: "Reactivación", color: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
-  { value: "transaccional", label: "Transaccional", color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+  { value: "promocional",   label: "Promocional",   color: "bg-orange-500/15 text-orange-300 border-orange-500/40", dot: "bg-orange-500" },
+  { value: "educativo",     label: "Educativo",     color: "bg-blue-500/15 text-blue-300 border-blue-500/40",       dot: "bg-blue-500" },
+  { value: "relacional",    label: "Relacional",    color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40", dot: "bg-emerald-500" },
+  { value: "reactivacion",  label: "Reactivación",  color: "bg-red-500/15 text-red-300 border-red-500/40",          dot: "bg-red-500" },
+  { value: "transaccional", label: "Transaccional", color: "bg-zinc-500/15 text-zinc-300 border-zinc-500/40",       dot: "bg-zinc-500" },
 ];
 
 const ESTADOS = ["borrador", "programado", "enviado"];
@@ -41,6 +41,9 @@ const DIAS = ["L","M","X","J","V","S","D"];
 function pad(n: number) { return n.toString().padStart(2, "0"); }
 function tipoColor(t: string) {
   return TIPOS_EMAIL.find((x) => x.value === t)?.color ?? "bg-muted text-muted-foreground border-border";
+}
+function tipoDot(t: string) {
+  return TIPOS_EMAIL.find((x) => x.value === t)?.dot ?? "bg-muted-foreground";
 }
 function tipoLabel(t: string) {
   return TIPOS_EMAIL.find((x) => x.value === t)?.label ?? t;
@@ -92,6 +95,7 @@ interface Campana {
   tipo: string;
   asunto: string;
   segmento: string | null;
+  razon: string | null;
   estado: string;
 }
 
@@ -122,19 +126,20 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
         .lte("fecha", end)
         .order("fecha", { ascending: true });
       if (error) throw error;
-      return data as Campana[];
+      return (data ?? []) as unknown as Campana[];
     },
   });
 
   const upsertMut = useMutation({
     mutationFn: async (c: Partial<Campana>) => {
       if (!c.fecha || !c.tipo || !c.asunto) throw new Error("Completa fecha, tipo y asunto");
-      const payload = {
+      const payload: any = {
         proyecto_id: proyectoId,
         fecha: c.fecha,
         tipo: c.tipo,
         asunto: c.asunto,
         segmento: c.segmento ?? null,
+        razon: c.razon ?? null,
         estado: c.estado ?? "borrador",
       };
       if (c.id) {
@@ -209,6 +214,7 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
         data: {
           path: "evaluar-parrilla-email",
           payload: {
+            accion: "evaluar_parrilla",
             proyecto_id: proyectoId,
             anio: view.y,
             mes: view.m + 1,
@@ -267,11 +273,12 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
             fecha: String(x.fecha).slice(0, 10),
             tipo: String(x.tipo),
             asunto: String(x.asunto),
-            segmento: x.segmento ?? null,
+            segmento: x.segmento ?? x.audiencia ?? null,
+            razon: x.razon ?? x.razon_estrategica ?? x.motivo ?? null,
             estado: x.estado ?? "borrador",
           }));
         if (rows.length) {
-          const { error } = await supabase.from("email_campanas").insert(rows);
+          const { error } = await supabase.from("email_campanas").insert(rows as any);
           if (error) throw error;
           qc.invalidateQueries({ queryKey: ["email_campanas", proyectoId] });
           toast.success(`${rows.length} campañas generadas`);
@@ -292,7 +299,7 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
     const fecha = day
       ? `${view.y}-${pad(view.m + 1)}-${pad(day)}`
       : `${view.y}-${pad(view.m + 1)}-${pad(today.getDate())}`;
-    setEditing({ fecha, tipo: "promocional", asunto: "", segmento: "", estado: "borrador" });
+    setEditing({ fecha, tipo: "promocional", asunto: "", segmento: "", razon: "", estado: "borrador" });
     setOpen(true);
   }
 
@@ -377,45 +384,69 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
       </div>
 
       {campanas.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card/40 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-background/40">
-              <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-                <th className="px-4 py-2">Fecha</th>
-                <th className="px-4 py-2">Tipo</th>
-                <th className="px-4 py-2">Asunto</th>
-                <th className="px-4 py-2">Segmento</th>
-                <th className="px-4 py-2">Estado</th>
-                <th className="px-4 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {campanas.map((c) => (
-                <tr key={c.id} className="border-t border-border/40 hover:bg-background/30">
-                  <td className="px-4 py-2 whitespace-nowrap">{c.fecha}</td>
-                  <td className="px-4 py-2">
-                    <span className={`text-[10px] px-2 py-0.5 rounded-full border ${tipoColor(c.tipo)}`}>
-                      {tipoLabel(c.tipo)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2">
-                    <button className="hover:underline text-left" onClick={() => openEdit(c)}>{c.asunto}</button>
-                  </td>
-                  <td className="px-4 py-2 text-muted-foreground">{c.segmento || "—"}</td>
-                  <td className="px-4 py-2"><Badge variant="secondary">{c.estado}</Badge></td>
-                  <td className="px-4 py-2 text-right">
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground">
+            <span className="uppercase tracking-wider">Leyenda:</span>
+            {TIPOS_EMAIL.map((t) => (
+              <span key={t.value} className="inline-flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${t.dot}`} />
+                {t.label}
+              </span>
+            ))}
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            {campanas.map((c) => (
+              <div
+                key={c.id}
+                className={`relative rounded-2xl border bg-card/40 p-4 pl-5 overflow-hidden hover:bg-background/40 transition ${tipoColor(c.tipo).replace(/bg-[^\s]+/g, "").trim()}`}
+              >
+                <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${tipoDot(c.tipo)}`} />
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border ${tipoColor(c.tipo)}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${tipoDot(c.tipo)}`} />
+                        {tipoLabel(c.tipo)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{c.fecha}</span>
+                      <Badge variant="secondary" className="text-[10px]">{c.estado}</Badge>
+                    </div>
                     <button
-                      className="text-muted-foreground hover:text-destructive"
-                      onClick={() => delMut.mutate(c.id)}
-                      aria-label="Eliminar"
+                      className="block text-left font-semibold text-base leading-tight hover:underline"
+                      onClick={() => openEdit(c)}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      {c.asunto}
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    <div className="mt-3 space-y-2">
+                      <div className="flex items-start gap-2 text-sm">
+                        <Users className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Audiencia</div>
+                          <div className="text-foreground">{c.segmento || <span className="text-muted-foreground italic">Sin segmento definido</span>}</div>
+                        </div>
+                      </div>
+                      {c.razon && (
+                        <div className="flex items-start gap-2 text-sm">
+                          <Lightbulb className="h-4 w-4 mt-0.5 text-amber-400 shrink-0" />
+                          <div>
+                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Razón estratégica</div>
+                            <div className="text-muted-foreground">{c.razon}</div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    className="text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => delMut.mutate(c.id)}
+                    aria-label="Eliminar"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -455,7 +486,7 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">Segmento</Label>
+                  <Label className="text-xs">Segmento / Audiencia</Label>
                   <Input
                     value={editing.segmento ?? ""}
                     onChange={(e) => setEditing({ ...editing, segmento: e.target.value })}
@@ -471,6 +502,15 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div>
+                <Label className="text-xs">Razón estratégica</Label>
+                <Textarea
+                  value={editing.razon ?? ""}
+                  onChange={(e) => setEditing({ ...editing, razon: e.target.value })}
+                  placeholder="¿Por qué este email en esta fecha?"
+                  rows={3}
+                />
               </div>
             </div>
           )}

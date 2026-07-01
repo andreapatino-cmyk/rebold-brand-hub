@@ -214,6 +214,7 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
         data: {
           path: "evaluar-parrilla-email",
           payload: {
+            accion: "evaluar_parrilla",
             proyecto_id: proyectoId,
             anio: view.y,
             mes: view.m + 1,

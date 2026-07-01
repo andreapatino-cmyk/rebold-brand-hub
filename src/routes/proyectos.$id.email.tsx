@@ -27,11 +27,11 @@ export const Route = createFileRoute("/proyectos/$id/email")({
 });
 
 const TIPOS_EMAIL = [
-  { value: "promocional", label: "Promocional", color: "bg-rose-500/15 text-rose-300 border-rose-500/30" },
-  { value: "educativo", label: "Educativo", color: "bg-sky-500/15 text-sky-300 border-sky-500/30" },
-  { value: "relacional", label: "Relacional", color: "bg-violet-500/15 text-violet-300 border-violet-500/30" },
-  { value: "reactivacion", label: "Reactivación", color: "bg-amber-500/15 text-amber-300 border-amber-500/30" },
-  { value: "transaccional", label: "Transaccional", color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" },
+  { value: "promocional",   label: "Promocional",   color: "bg-orange-500/15 text-orange-300 border-orange-500/40", dot: "bg-orange-500" },
+  { value: "educativo",     label: "Educativo",     color: "bg-blue-500/15 text-blue-300 border-blue-500/40",       dot: "bg-blue-500" },
+  { value: "relacional",    label: "Relacional",    color: "bg-emerald-500/15 text-emerald-300 border-emerald-500/40", dot: "bg-emerald-500" },
+  { value: "reactivacion",  label: "Reactivación",  color: "bg-red-500/15 text-red-300 border-red-500/40",          dot: "bg-red-500" },
+  { value: "transaccional", label: "Transaccional", color: "bg-zinc-500/15 text-zinc-300 border-zinc-500/40",       dot: "bg-zinc-500" },
 ];
 
 const ESTADOS = ["borrador", "programado", "enviado"];
@@ -41,6 +41,9 @@ const DIAS = ["L","M","X","J","V","S","D"];
 function pad(n: number) { return n.toString().padStart(2, "0"); }
 function tipoColor(t: string) {
   return TIPOS_EMAIL.find((x) => x.value === t)?.color ?? "bg-muted text-muted-foreground border-border";
+}
+function tipoDot(t: string) {
+  return TIPOS_EMAIL.find((x) => x.value === t)?.dot ?? "bg-muted-foreground";
 }
 function tipoLabel(t: string) {
   return TIPOS_EMAIL.find((x) => x.value === t)?.label ?? t;

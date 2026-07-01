@@ -486,7 +486,7 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">Segmento</Label>
+                  <Label className="text-xs">Segmento / Audiencia</Label>
                   <Input
                     value={editing.segmento ?? ""}
                     onChange={(e) => setEditing({ ...editing, segmento: e.target.value })}
@@ -502,6 +502,15 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div>
+                <Label className="text-xs">Razón estratégica</Label>
+                <Textarea
+                  value={editing.razon ?? ""}
+                  onChange={(e) => setEditing({ ...editing, razon: e.target.value })}
+                  placeholder="¿Por qué este email en esta fecha?"
+                  rows={3}
+                />
               </div>
             </div>
           )}

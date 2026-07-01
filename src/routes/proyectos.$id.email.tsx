@@ -95,6 +95,7 @@ interface Campana {
   tipo: string;
   asunto: string;
   segmento: string | null;
+  razon: string | null;
   estado: string;
 }
 

@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Trash2,
-  Mail, GitBranch, FileText, BarChart3, Download, Workflow,
+  Mail, GitBranch, FileText, BarChart3, Download, Workflow, Users, Lightbulb,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";

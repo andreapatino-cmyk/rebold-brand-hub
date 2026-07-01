@@ -1,0 +1,1 @@
+ALTER TABLE public.email_campanas ADD COLUMN IF NOT EXISTS razon text;

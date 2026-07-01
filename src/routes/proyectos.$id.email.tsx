@@ -126,7 +126,7 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
         .lte("fecha", end)
         .order("fecha", { ascending: true });
       if (error) throw error;
-      return data as Campana[];
+      return (data ?? []) as unknown as Campana[];
     },
   });
 

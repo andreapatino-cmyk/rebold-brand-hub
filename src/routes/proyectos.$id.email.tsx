@@ -266,6 +266,7 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
         (Array.isArray(root?.campanas) && root.campanas) ||
         (Array.isArray(root) ? root : []);
       if (items.length) {
+        console.log("[email-marketing] primera campaña recibida:", items[0]);
         const rows = items
           .filter((x) => x && x.fecha && x.tipo && x.asunto)
           .map((x) => ({
@@ -273,8 +274,24 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
             fecha: String(x.fecha).slice(0, 10),
             tipo: String(x.tipo),
             asunto: String(x.asunto),
-            segmento: x.segmento ?? x.audiencia ?? null,
-            razon: x.razon ?? x.razon_estrategica ?? x.motivo ?? null,
+            segmento: x.segmento ?? x.audiencia ?? x.publico ?? x.target ?? null,
+            razon:
+              x.razon ??
+              x.razon_estrategica ??
+              x["razón"] ??
+              x["razón_estrategica"] ??
+              x["razón_estratégica"] ??
+              x.motivo ??
+              x.justificacion ??
+              x["justificación"] ??
+              x.porque ??
+              x["por_que"] ??
+              x["por_qué"] ??
+              x.estrategia ??
+              x.objetivo ??
+              x.rationale ??
+              x.reason ??
+              null,
             estado: x.estado ?? "borrador",
           }));
         if (rows.length) {

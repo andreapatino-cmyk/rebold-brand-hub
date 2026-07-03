@@ -275,23 +275,8 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
             tipo: String(x.tipo),
             asunto: String(x.asunto),
             segmento: x.segmento ?? x.audiencia ?? x.publico ?? x.target ?? null,
-            razon:
-              x.razon ??
-              x.razon_estrategica ??
-              x["razón"] ??
-              x["razón_estrategica"] ??
-              x["razón_estratégica"] ??
-              x.motivo ??
-              x.justificacion ??
-              x["justificación"] ??
-              x.porque ??
-              x["por_que"] ??
-              x["por_qué"] ??
-              x.estrategia ??
-              x.objetivo ??
-              x.rationale ??
-              x.reason ??
-              null,
+            razon: x.razon ?? null,
+
             estado: x.estado ?? "borrador",
           }));
         if (rows.length) {

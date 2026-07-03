@@ -544,6 +544,8 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
   const qc = useQueryClient();
   const callWebhook = useServerFn(callN8nWebhook);
   const [generando, setGenerando] = useState(false);
+  const [flujosNuevos, setFlujosNuevos] = useState<any[]>([]);
+  const [flujosMejorar, setFlujosMejorar] = useState<any[]>([]);
 
   const { data: flujos = [], isLoading } = useQuery({
     queryKey: ["email_flujos", proyectoId],
@@ -574,36 +576,46 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
     try {
       const { data: memData } = await supabase
         .from("memoria_cliente").select("clave,valor").eq("proyecto_id", proyectoId);
-      const preferencias = (memData ?? []).filter((r: any) => r.clave === "preferencia").map((r: any) => r.valor);
-      const vetos = (memData ?? []).filter((r: any) => r.clave === "veto").map((r: any) => r.valor);
-      const { raw } = await callWebhook({
-        data: {
-          path: "generar-flujos-email",
-          payload: { proyecto_id: proyectoId, memoria: { preferencias, vetos } },
+      const rows = memData ?? [];
+      const preferencias = rows.filter((r: any) => r.clave === "preferencia").map((r: any) => r.valor);
+      const vetos = rows.filter((r: any) => r.clave === "veto").map((r: any) => r.valor);
+      const get = (k: string) => rows.find((r: any) => r.clave === k)?.valor ?? "";
+      const tono_de_voz = get("tono_de_voz") || get("tono");
+
+      const { data: proyecto } = await supabase
+        .from("proyectos").select("nombre,pais,pilares").eq("id", proyectoId).maybeSingle();
+
+      const body = {
+        accion: "generar_flujos",
+        proyecto: {
+          nombre_marca: proyecto?.nombre ?? "",
+          pais: proyecto?.pais ?? "",
+          tono_de_voz,
+          pilares: proyecto?.pilares ?? [],
+          preferencias,
+          vetos,
         },
+        flujos_actuales: [],
+        metricas: {},
+      };
+
+      const { raw } = await callWebhook({
+        data: { path: "email-marketing", payload: body },
       });
       const clean = raw.startsWith("=") ? raw.slice(1) : raw;
       let data: any = null;
       try { data = JSON.parse(clean); } catch { /* */ }
-      const items: any[] = Array.isArray(data?.flujos) ? data.flujos : Array.isArray(data) ? data : [];
-      if (items.length) {
-        const rows = items
-          .filter((x) => x && x.nombre)
-          .map((x) => ({
-            proyecto_id: proyectoId,
-            nombre: String(x.nombre),
-            descripcion: x.descripcion ?? null,
-            trigger: x.trigger ?? null,
-            secuencia: Array.isArray(x.secuencia) ? x.secuencia : [],
-          }));
-        if (rows.length) {
-          const { error } = await supabase.from("email_flujos").insert(rows);
-          if (error) throw error;
-          qc.invalidateQueries({ queryKey: ["email_flujos", proyectoId] });
-          toast.success(`${rows.length} flujos generados`);
-        } else {
-          toast.success("Solicitud enviada");
-        }
+      if (typeof data === "string") {
+        try { data = JSON.parse(data); } catch { /* */ }
+      }
+      const root = Array.isArray(data) ? data[0] : data;
+      const resultado = root?.resultado ?? root ?? {};
+      const nuevos: any[] = Array.isArray(resultado?.flujos_nuevos) ? resultado.flujos_nuevos : [];
+      const mejorar: any[] = Array.isArray(resultado?.flujos_mejorar) ? resultado.flujos_mejorar : [];
+      setFlujosNuevos(nuevos);
+      setFlujosMejorar(mejorar);
+      if (nuevos.length || mejorar.length) {
+        toast.success(`${nuevos.length} nuevos · ${mejorar.length} a mejorar`);
       } else {
         toast.success("Solicitud enviada");
       }
@@ -615,7 +627,7 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <p className="text-sm text-muted-foreground">
           Flujos automatizados sugeridos para el proyecto.
@@ -626,54 +638,133 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="text-sm text-muted-foreground">Cargando…</div>
-      ) : flujos.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/60 p-10 text-center">
-          <GitBranch className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-          <p className="text-sm text-muted-foreground">Aún no hay flujos. Genera sugerencias basadas en el cliente.</p>
+      {(flujosNuevos.length > 0 || flujosMejorar.length > 0) && (
+        <div className="space-y-6">
+          {flujosNuevos.length > 0 && (
+            <FlujosSuggestionSection
+              title="Flujos nuevos sugeridos"
+              accent="bg-emerald-500"
+              items={flujosNuevos}
+            />
+          )}
+          {flujosMejorar.length > 0 && (
+            <FlujosSuggestionSection
+              title="Flujos a mejorar"
+              accent="bg-amber-500"
+              items={flujosMejorar}
+            />
+          )}
         </div>
-      ) : (
-        <div className="grid md:grid-cols-2 gap-4">
-          {flujos.map((f) => (
-            <div key={f.id} className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <h4 className="font-display font-semibold">{f.nombre}</h4>
-                  {f.trigger && (
-                    <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
-                      Trigger · <span className="text-foreground/80 normal-case tracking-normal">{f.trigger}</span>
-                    </div>
-                  )}
+      )}
+
+      <div className="space-y-2">
+        <h3 className="font-display text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+          Flujos guardados
+        </h3>
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Cargando…</div>
+        ) : flujos.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-border/60 p-10 text-center">
+            <GitBranch className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">Aún no hay flujos guardados.</p>
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {flujos.map((f) => (
+              <div key={f.id} className="rounded-2xl border border-border bg-card/40 p-5 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <h4 className="font-display font-semibold">{f.nombre}</h4>
+                    {f.trigger && (
+                      <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                        Trigger · <span className="text-foreground/80 normal-case tracking-normal">{f.trigger}</span>
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    className="text-muted-foreground hover:text-destructive"
+                    onClick={() => delMut.mutate(f.id)}
+                    aria-label="Eliminar"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
                 </div>
-                <button
-                  className="text-muted-foreground hover:text-destructive"
-                  onClick={() => delMut.mutate(f.id)}
-                  aria-label="Eliminar"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                {f.descripcion && <p className="text-sm text-muted-foreground">{f.descripcion}</p>}
+                {f.secuencia?.length > 0 && (
+                  <ol className="space-y-2 mt-2">
+                    {f.secuencia.map((s, i) => (
+                      <li key={i} className="flex gap-3 items-start text-sm">
+                        <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5">
+                          {i + 1}
+                        </div>
+                        <div className="flex-1">
+                          <div className="font-medium">{s.asunto}</div>
+                          {s.espera && <div className="text-xs text-muted-foreground">Espera: {s.espera}</div>}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
               </div>
-              {f.descripcion && <p className="text-sm text-muted-foreground">{f.descripcion}</p>}
-              {f.secuencia?.length > 0 && (
-                <ol className="space-y-2 mt-2">
-                  {f.secuencia.map((s, i) => (
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FlujosSuggestionSection({
+  title, accent, items,
+}: { title: string; accent: string; items: any[] }) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <span className={`h-2 w-2 rounded-full ${accent}`} />
+        <h3 className="font-display text-sm font-semibold uppercase tracking-wider">{title}</h3>
+        <Badge variant="secondary" className="text-[10px]">{items.length}</Badge>
+      </div>
+      <div className="grid md:grid-cols-2 gap-4">
+        {items.map((f, idx) => {
+          const secuencia: any[] = Array.isArray(f?.secuencia) ? f.secuencia : [];
+          return (
+            <div key={idx} className="relative rounded-2xl border border-border bg-card/40 p-5 pl-6 overflow-hidden">
+              <span className={`absolute left-0 top-0 bottom-0 w-1.5 ${accent}`} />
+              <h4 className="font-display font-semibold">{f?.nombre ?? "Flujo"}</h4>
+              {f?.trigger && (
+                <div className="mt-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Trigger · <span className="text-foreground/80 normal-case tracking-normal">{f.trigger}</span>
+                </div>
+              )}
+              {f?.descripcion && <p className="mt-2 text-sm text-muted-foreground">{f.descripcion}</p>}
+              {f?.motivo && (
+                <div className="mt-3 flex items-start gap-2 text-sm">
+                  <Lightbulb className="h-4 w-4 mt-0.5 text-amber-400 shrink-0" />
+                  <div>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Motivo</div>
+                    <div className="text-muted-foreground">{f.motivo}</div>
+                  </div>
+                </div>
+              )}
+              {secuencia.length > 0 && (
+                <ol className="space-y-2 mt-3">
+                  {secuencia.map((s: any, i: number) => (
                     <li key={i} className="flex gap-3 items-start text-sm">
                       <div className="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold flex items-center justify-center shrink-0 mt-0.5">
                         {i + 1}
                       </div>
                       <div className="flex-1">
-                        <div className="font-medium">{s.asunto}</div>
-                        {s.espera && <div className="text-xs text-muted-foreground">Espera: {s.espera}</div>}
+                        <div className="font-medium">{s?.asunto ?? s?.nombre ?? `Paso ${i + 1}`}</div>
+                        {s?.espera && <div className="text-xs text-muted-foreground">Espera: {s.espera}</div>}
                       </div>
                     </li>
                   ))}
                 </ol>
               )}
             </div>
-          ))}
-        </div>
-      )}
+          );
+        })}
+      </div>
     </div>
   );
 }

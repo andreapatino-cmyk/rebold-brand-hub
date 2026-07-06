@@ -774,6 +774,7 @@ function FlujosSuggestionSection({
 function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
   const callWebhook = useServerFn(callN8nWebhook);
   const [tipo, setTipo] = useState("promocional");
+  const [idioma, setIdioma] = useState<"es" | "en">("es");
   const [objetivo, setObjetivo] = useState("");
   const [producto, setProducto] = useState("");
   const [segmento, setSegmento] = useState("");
@@ -810,7 +811,7 @@ function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
               preferencias,
               vetos,
             },
-            email_data: { tipo, objetivo, producto, segmento, fecha },
+            email_data: { tipo, objetivo, producto, segmento, fecha, idioma },
           },
         },
       });
@@ -869,6 +870,16 @@ ${[resultado.saludo, resultado.introduccion, resultado.cuerpo_principal, resulta
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               {TIPOS_EMAIL.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label className="text-xs">Idioma</Label>
+          <Select value={idioma} onValueChange={(v) => setIdioma(v as "es" | "en")}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="es">Español</SelectItem>
+              <SelectItem value="en">Inglés</SelectItem>
             </SelectContent>
           </Select>
         </div>

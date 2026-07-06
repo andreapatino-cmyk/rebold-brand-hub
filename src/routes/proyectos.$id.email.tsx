@@ -811,7 +811,7 @@ function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
               preferencias,
               vetos,
             },
-            email_data: { tipo, objetivo, producto, segmento, fecha },
+            email_data: { tipo, objetivo, producto, segmento, fecha, idioma },
           },
         },
       });

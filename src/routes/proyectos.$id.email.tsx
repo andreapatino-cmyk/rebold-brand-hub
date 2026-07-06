@@ -774,6 +774,7 @@ function FlujosSuggestionSection({
 function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
   const callWebhook = useServerFn(callN8nWebhook);
   const [tipo, setTipo] = useState("promocional");
+  const [idioma, setIdioma] = useState<"es" | "en">("es");
   const [objetivo, setObjetivo] = useState("");
   const [producto, setProducto] = useState("");
   const [segmento, setSegmento] = useState("");

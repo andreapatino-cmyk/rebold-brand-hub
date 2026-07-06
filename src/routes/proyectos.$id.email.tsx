@@ -775,9 +775,11 @@ function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
   const callWebhook = useServerFn(callN8nWebhook);
   const [tipo, setTipo] = useState("promocional");
   const [objetivo, setObjetivo] = useState("");
-  const [tono, setTono] = useState("cercano");
+  const [producto, setProducto] = useState("");
+  const [segmento, setSegmento] = useState("");
+  const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
-  const [resultado, setResultado] = useState("");
+  const [resultado, setResultado] = useState<any>(null);
 
   async function generar() {
     if (!objetivo.trim()) {
@@ -790,23 +792,37 @@ function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
         .from("memoria_cliente").select("clave,valor").eq("proyecto_id", proyectoId);
       const preferencias = (memData ?? []).filter((r: any) => r.clave === "preferencia").map((r: any) => r.valor);
       const vetos = (memData ?? []).filter((r: any) => r.clave === "veto").map((r: any) => r.valor);
+      const get = (k: string) => (memData ?? []).find((r: any) => r.clave === k)?.valor ?? "";
+      const tono_de_voz = get("tono_de_voz") || get("tono");
+
+      const { data: proyecto } = await supabase
+        .from("proyectos").select("nombre,pais").eq("id", proyectoId).maybeSingle();
+
       const { raw } = await callWebhook({
         data: {
-          path: "generar-cuerpo-email",
+          path: "email-marketing",
           payload: {
-            proyecto_id: proyectoId,
-            tipo, objetivo, tono,
-            memoria: { preferencias, vetos },
+            accion: "generar_cuerpo",
+            proyecto: {
+              nombre_marca: proyecto?.nombre ?? "",
+              pais: proyecto?.pais ?? "",
+              tono_de_voz,
+              preferencias,
+              vetos,
+            },
+            email_data: { tipo, objetivo, producto, segmento, fecha },
           },
         },
       });
       const clean = raw.startsWith("=") ? raw.slice(1) : raw;
-      let texto = clean;
-      try {
-        const parsed = JSON.parse(clean);
-        texto = parsed?.texto ?? parsed?.cuerpo ?? parsed?.contenido ?? clean;
-      } catch { /* texto plano */ }
-      setResultado(typeof texto === "string" ? texto : JSON.stringify(texto, null, 2));
+      let parsed: any = clean;
+      try { parsed = JSON.parse(clean); } catch { /* texto plano */ }
+      if (typeof parsed === "string") {
+        try { parsed = JSON.parse(parsed); } catch { /* noop */ }
+      }
+      const root = Array.isArray(parsed) ? parsed[0] : parsed;
+      const res = root?.resultado ?? root ?? {};
+      setResultado(res);
     } catch (e: any) {
       toast.error(e?.message ?? "Error");
     } finally {
@@ -816,10 +832,13 @@ function CuerpoEmail({ proyectoId }: { proyectoId: string }) {
 
   function exportarHTML() {
     if (!resultado) return;
-    const html = `<!DOCTYPE html>
-<html lang="es"><head><meta charset="utf-8"><title>Email</title></head>
+    const html = resultado.html ?? `<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8"><title>${resultado.asunto ?? "Email"}</title></head>
 <body style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#111;line-height:1.6;">
-${resultado.split("\n").map((l) => `<p>${l.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`).join("\n")}
+${[resultado.saludo, resultado.introduccion, resultado.cuerpo_principal, resultado.cta_texto, resultado.cierre, resultado.firma]
+  .filter(Boolean)
+  .map((l: string) => `<p>${String(l).replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>`)
+  .join("\n")}
 </body></html>`;
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
@@ -828,6 +847,17 @@ ${resultado.split("\n").map((l) => `<p>${l.replace(/</g, "&lt;").replace(/>/g, "
     document.body.appendChild(a); a.click(); a.remove();
     URL.revokeObjectURL(url);
   }
+
+  const sections: Array<[string, string | undefined]> = resultado
+    ? [
+        ["Saludo", resultado.saludo],
+        ["Introducción", resultado.introduccion],
+        ["Cuerpo principal", resultado.cuerpo_principal],
+        ["CTA", resultado.cta_texto],
+        ["Cierre", resultado.cierre],
+        ["Firma", resultado.firma],
+      ]
+    : [];
 
   return (
     <div className="grid lg:grid-cols-[360px_1fr] gap-6">
@@ -848,21 +878,20 @@ ${resultado.split("\n").map((l) => `<p>${l.replace(/</g, "&lt;").replace(/>/g, "
             value={objetivo}
             onChange={(e) => setObjetivo(e.target.value)}
             placeholder="Ej: Anunciar el lanzamiento de la nueva colección"
-            rows={4}
+            rows={3}
           />
         </div>
         <div>
-          <Label className="text-xs">Tono</Label>
-          <Select value={tono} onValueChange={setTono}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="cercano">Cercano</SelectItem>
-              <SelectItem value="profesional">Profesional</SelectItem>
-              <SelectItem value="divertido">Divertido</SelectItem>
-              <SelectItem value="inspirador">Inspirador</SelectItem>
-              <SelectItem value="urgente">Urgente</SelectItem>
-            </SelectContent>
-          </Select>
+          <Label className="text-xs">Producto</Label>
+          <Input value={producto} onChange={(e) => setProducto(e.target.value)} placeholder="Ej: Colección otoño" />
+        </div>
+        <div>
+          <Label className="text-xs">Segmento</Label>
+          <Input value={segmento} onChange={(e) => setSegmento(e.target.value)} placeholder="Ej: Clientas VIP" />
+        </div>
+        <div>
+          <Label className="text-xs">Fecha</Label>
+          <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
         </div>
         <Button onClick={generar} disabled={loading} className="w-full">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
@@ -878,8 +907,29 @@ ${resultado.split("\n").map((l) => `<p>${l.replace(/</g, "&lt;").replace(/>/g, "
           </Button>
         </div>
         {resultado ? (
-          <div className="rounded-lg bg-background/40 border border-border/60 p-4 whitespace-pre-wrap text-sm leading-relaxed min-h-[300px]">
-            {resultado}
+          <div className="space-y-4">
+            {resultado.asunto && (
+              <div className="rounded-lg border border-border/60 bg-background/40 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Asunto</div>
+                <div className="font-semibold">{resultado.asunto}</div>
+              </div>
+            )}
+            {resultado.preheader && (
+              <div className="rounded-lg border border-border/60 bg-background/40 p-4">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">Preheader</div>
+                <div className="text-sm text-muted-foreground">{resultado.preheader}</div>
+              </div>
+            )}
+            <div className="rounded-lg border border-border/60 bg-background/40 p-4 space-y-4">
+              {sections.map(([label, value]) =>
+                value ? (
+                  <div key={label}>
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{label}</div>
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed">{value}</div>
+                  </div>
+                ) : null,
+              )}
+            </div>
           </div>
         ) : (
           <div className="rounded-lg border border-dashed border-border/60 p-12 text-center text-sm text-muted-foreground min-h-[300px] flex items-center justify-center">
@@ -890,6 +940,7 @@ ${resultado.split("\n").map((l) => `<p>${l.replace(/</g, "&lt;").replace(/>/g, "
     </div>
   );
 }
+
 
 /* ------------------ MÉTRICAS ------------------ */
 

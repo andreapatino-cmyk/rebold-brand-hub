@@ -874,6 +874,16 @@ ${[resultado.saludo, resultado.introduccion, resultado.cuerpo_principal, resulta
           </Select>
         </div>
         <div>
+          <Label className="text-xs">Idioma</Label>
+          <Select value={idioma} onValueChange={(v) => setIdioma(v as "es" | "en")}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="es">Español</SelectItem>
+              <SelectItem value="en">Inglés</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
           <Label className="text-xs">Objetivo</Label>
           <Textarea
             value={objetivo}

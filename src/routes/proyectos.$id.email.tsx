@@ -101,6 +101,7 @@ interface Campana {
 
 function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const callWebhook = useServerFn(callN8nWebhook);
   const today = new Date();
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });

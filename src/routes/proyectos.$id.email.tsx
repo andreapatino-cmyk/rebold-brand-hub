@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -101,6 +101,7 @@ interface Campana {
 
 function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const callWebhook = useServerFn(callN8nWebhook);
   const today = new Date();
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() });
@@ -225,19 +226,62 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
         anio: view.y,
         campanas,
       };
-      await callWebhook({
-        data: {
-          path: "email-marketing",
-          payload: body,
-        },
+      const { raw } = await callWebhook({
+        data: { path: "email-marketing", payload: body },
       });
-      toast.success("Parrilla enviada a evaluación");
+      const clean = raw.startsWith("=") ? raw.slice(1) : raw;
+      let parsed: any = null;
+      try { parsed = JSON.parse(clean); } catch { /* noop */ }
+      if (typeof parsed === "string") {
+        try { parsed = JSON.parse(parsed); } catch { /* noop */ }
+      }
+      const root = Array.isArray(parsed) ? parsed[0] : parsed;
+      const evaluacion = root?.resultado ?? root?.evaluacion ?? root;
+
+      if (!evaluacion || (evaluacion.puntuacion_global == null && !evaluacion.criterios)) {
+        throw new Error("El webhook no devolvió una evaluación válida.");
+      }
+
+      const criteriosObj = evaluacion.criterios ?? {};
+      const criteriosArr = Array.isArray(criteriosObj)
+        ? criteriosObj.map((v: any) => ({
+            nombre: v?.nombre ?? "",
+            score: Math.round(Number(v?.score ?? v?.puntaje ?? 0) * (Number(v?.score ?? v?.puntaje ?? 0) <= 10 ? 10 : 1)),
+            nivel: v?.nivel,
+            descripcion: v?.observacion ?? v?.descripcion ?? "",
+          }))
+        : Object.entries(criteriosObj).map(([k, v]: [string, any]) => ({
+            nombre: k,
+            score: Math.round(Number(v?.puntaje ?? v?.score ?? 0) * (Number(v?.puntaje ?? v?.score ?? 0) <= 10 ? 10 : 1)),
+            nivel: v?.nivel,
+            descripcion: v?.observacion ?? v?.descripcion ?? "",
+          }));
+
+      const evalId = `local-${Date.now()}`;
+      const evalPayload = {
+        id: evalId,
+        puntuacion_global: Number(evaluacion.puntuacion_global ?? 0),
+        nivel_global: evaluacion.nivel_global,
+        criterios: criteriosArr,
+        alertas: evaluacion.alertas ?? [],
+        sugerencias: evaluacion.sugerencias ?? [],
+        resumen: evaluacion.resumen ?? "",
+        proyecto_id: proyectoId,
+      };
+      sessionStorage.setItem(`evaluacion:${evalId}`, JSON.stringify(evalPayload));
+      toast.success("Evaluación completada");
+      navigate({
+        to: "/proyectos/$id/evaluacion",
+        params: { id: proyectoId },
+        search: { evalId },
+      });
     } catch (e: any) {
       toast.error(e?.message ?? "Error");
     } finally {
       setEvaluando(false);
     }
   }
+
 
   async function generarParrilla() {
     setGenerando(true);

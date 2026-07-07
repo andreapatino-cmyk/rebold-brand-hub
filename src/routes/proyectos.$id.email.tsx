@@ -209,18 +209,26 @@ function ParrillaEmail({ proyectoId }: { proyectoId: string }) {
   async function evaluarParrilla() {
     setEvaluando(true);
     try {
-      const memoria = await leerMemoria();
+      const [memoria, proyecto] = await Promise.all([leerMemoria(), leerProyecto()]);
+      const body = {
+        accion: "evaluar_parrilla",
+        proyecto: {
+          nombre_marca: proyecto?.nombre ?? "",
+          pais: proyecto?.pais ?? "",
+          industria: memoria.industria,
+          tono_de_voz: memoria.tono_de_voz,
+          pilares: proyecto?.pilares ?? [],
+          preferencias: memoria.preferencias,
+          vetos: memoria.vetos,
+        },
+        mes: view.m + 1,
+        anio: view.y,
+        campanas,
+      };
       await callWebhook({
         data: {
-          path: "evaluar-parrilla-email",
-          payload: {
-            accion: "evaluar_parrilla",
-            proyecto_id: proyectoId,
-            anio: view.y,
-            mes: view.m + 1,
-            campanas,
-            memoria,
-          },
+          path: "email-marketing",
+          payload: body,
         },
       });
       toast.success("Parrilla enviada a evaluación");

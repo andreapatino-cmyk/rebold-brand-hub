@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as FeedbackSemanalRouteImport } from './routes/feedback-semanal'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ProyectosIndexRouteImport } from './routes/proyectos.index'
 import { Route as ProyectosIdRouteImport } from './routes/proyectos.$id'
@@ -23,6 +24,11 @@ import { Route as ProyectosIdEmailRouteImport } from './routes/proyectos.$id.ema
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedbackSemanalRoute = FeedbackSemanalRouteImport.update({
+  id: '/feedback-semanal',
+  path: '/feedback-semanal',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -73,6 +79,7 @@ const ProyectosIdEmailRoute = ProyectosIdEmailRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/feedback-semanal': typeof FeedbackSemanalRoute
   '/login': typeof LoginRoute
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
   '/proyectos/': typeof ProyectosIndexRoute
@@ -85,6 +92,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/feedback-semanal': typeof FeedbackSemanalRoute
   '/login': typeof LoginRoute
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
   '/proyectos': typeof ProyectosIndexRoute
@@ -98,6 +106,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/feedback-semanal': typeof FeedbackSemanalRoute
   '/login': typeof LoginRoute
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
   '/proyectos/': typeof ProyectosIndexRoute
@@ -112,6 +121,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/feedback-semanal'
     | '/login'
     | '/proyectos/$id'
     | '/proyectos/'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/feedback-semanal'
     | '/login'
     | '/proyectos/$id'
     | '/proyectos'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/feedback-semanal'
     | '/login'
     | '/proyectos/$id'
     | '/proyectos/'
@@ -149,6 +161,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  FeedbackSemanalRoute: typeof FeedbackSemanalRoute
   LoginRoute: typeof LoginRoute
   ProyectosIdRoute: typeof ProyectosIdRouteWithChildren
   ProyectosIndexRoute: typeof ProyectosIndexRoute
@@ -161,6 +174,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feedback-semanal': {
+      id: '/feedback-semanal'
+      path: '/feedback-semanal'
+      fullPath: '/feedback-semanal'
+      preLoaderRoute: typeof FeedbackSemanalRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -253,6 +273,7 @@ const ProyectosIdRouteWithChildren = ProyectosIdRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  FeedbackSemanalRoute: FeedbackSemanalRoute,
   LoginRoute: LoginRoute,
   ProyectosIdRoute: ProyectosIdRouteWithChildren,
   ProyectosIndexRoute: ProyectosIndexRoute,

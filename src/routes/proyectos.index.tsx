@@ -16,6 +16,9 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
@@ -163,6 +166,7 @@ function ProyectosPage() {
   const [editPais, setEditPais] = useState("");
   const [editRedes, setEditRedes] = useState<string[]>([]);
   const [editPilares, setEditPilares] = useState<string[]>([]);
+  const [editCM, setEditCM] = useState<string>("");
   const [editSaving, setEditSaving] = useState(false);
 
   const openEdit = (p: any, e: React.MouseEvent) => {
@@ -173,6 +177,7 @@ function ProyectosPage() {
     setEditPais(p.pais ?? "");
     setEditRedes(p.redes ?? []);
     setEditPilares(p.pilares ?? []);
+    setEditCM(p.community_manager ?? "");
     setEditOpen(true);
   };
 
@@ -187,8 +192,9 @@ function ProyectosPage() {
       pais: editPais.trim() || null,
       redes: editRedes,
       pilares: editPilares,
+      community_manager: editCM || null,
       updated_at: new Date().toISOString(),
-    }).eq("id", editProyecto.id);
+    } as any).eq("id", editProyecto.id);
     setEditSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Proyecto actualizado");
@@ -383,6 +389,17 @@ function ProyectosPage() {
             <div className="space-y-2">
               <Label>Pilares de contenido <span className="text-muted-foreground font-normal">(opcional)</span></Label>
               <PilaresInput value={editPilares} onChange={setEditPilares} />
+            </div>
+            <div className="space-y-2">
+              <Label>Community manager <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <Select value={editCM || "__none__"} onValueChange={(v) => setEditCM(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Sin asignar" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sin asignar</SelectItem>
+                  <SelectItem value="Alicia Prieto">Alicia Prieto</SelectItem>
+                  <SelectItem value="Alexandra Salas">Alexandra Salas</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

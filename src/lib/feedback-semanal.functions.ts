@@ -2,24 +2,15 @@ import { createServerFn } from "@tanstack/react-start";
 
 const CMS = ["Alicia Prieto", "Alexandra Salas"] as const;
 
-export const listProyectosPorCM = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) => {
-    const d = data as { community_manager?: string };
-    if (!d?.community_manager || !CMS.includes(d.community_manager as (typeof CMS)[number])) {
-      throw new Error("Community manager inválido");
-    }
-    return { community_manager: d.community_manager };
-  })
-  .handler(async ({ data }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: rows, error } = await supabaseAdmin
-      .from("proyectos")
-      .select("id, nombre, pais, community_manager")
-      .eq("community_manager", data.community_manager)
-      .order("nombre", { ascending: true });
-    if (error) throw new Error(error.message);
-    return { proyectos: rows ?? [] };
-  });
+export const listProyectos = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: rows, error } = await supabaseAdmin
+    .from("proyectos")
+    .select("id, nombre, pais, community_manager")
+    .order("nombre", { ascending: true });
+  if (error) throw new Error(error.message);
+  return { proyectos: rows ?? [] };
+});
 
 export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
   .inputValidator((data: unknown) => {

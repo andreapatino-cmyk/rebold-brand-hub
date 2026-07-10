@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { listProyectosPorCM, guardarFeedbackSemanal } from "@/lib/feedback-semanal.functions";
+import { listProyectos, guardarFeedbackSemanal } from "@/lib/feedback-semanal.functions";
 
 export const Route = createFileRoute("/feedback-semanal")({
   head: () => ({
@@ -28,7 +28,7 @@ type CM = (typeof CMS)[number];
 type Proyecto = { id: string; nombre: string; pais: string | null; community_manager: string | null };
 
 function FeedbackSemanalPage() {
-  const listar = useServerFn(listProyectosPorCM);
+  const listar = useServerFn(listProyectos);
   const guardar = useServerFn(guardarFeedbackSemanal);
 
   const [cm, setCm] = useState<CM | "">("");
@@ -37,10 +37,9 @@ function FeedbackSemanalPage() {
   const [enviando, setEnviando] = useState(false);
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ["feedback-semanal-proyectos", cm],
-    enabled: !!cm,
+    queryKey: ["feedback-semanal-proyectos"],
     queryFn: async () => {
-      const r = await listar({ data: { community_manager: cm } });
+      const r = await listar();
       return r.proyectos as Proyecto[];
     },
   });
@@ -101,20 +100,14 @@ function FeedbackSemanalPage() {
           </div>
         </div>
 
-        {!cm ? (
-          <div className="rounded-2xl border border-dashed border-border bg-card/30 p-10 text-center">
-            <MessageSquare className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-            <p className="text-sm text-muted-foreground">Selecciona un community manager para ver sus proyectos.</p>
-          </div>
-        ) : isLoading || isFetching ? (
+        {isLoading || isFetching ? (
           <div className="flex items-center gap-2 text-sm text-muted-foreground p-6">
             <Loader2 className="h-4 w-4 animate-spin" /> Cargando proyectos…
           </div>
         ) : proyectos.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border bg-card/30 p-10 text-center">
-            <p className="text-sm text-muted-foreground">
-              No hay proyectos asignados a <strong>{cm}</strong>.
-            </p>
+            <MessageSquare className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">No hay proyectos disponibles.</p>
           </div>
         ) : (
           <>

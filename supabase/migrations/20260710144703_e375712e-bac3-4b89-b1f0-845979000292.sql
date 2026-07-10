@@ -1,0 +1,1 @@
+ALTER TABLE public.proyectos ADD COLUMN IF NOT EXISTS community_manager text;

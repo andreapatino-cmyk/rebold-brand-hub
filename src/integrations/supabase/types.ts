@@ -277,6 +277,7 @@ export type Database = {
       }
       proyectos: {
         Row: {
+          community_manager: string | null
           created_at: string
           estado_ultima_parrilla: string | null
           id: string
@@ -289,6 +290,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          community_manager?: string | null
           created_at?: string
           estado_ultima_parrilla?: string | null
           id?: string
@@ -301,6 +303,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          community_manager?: string | null
           created_at?: string
           estado_ultima_parrilla?: string | null
           id?: string

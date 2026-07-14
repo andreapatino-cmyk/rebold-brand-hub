@@ -172,21 +172,27 @@ export type Database = {
       memoria_cliente: {
         Row: {
           clave: string
+          community_manager: string | null
           created_at: string
+          fuente: string | null
           id: string
           proyecto_id: string
           valor: string | null
         }
         Insert: {
           clave: string
+          community_manager?: string | null
           created_at?: string
+          fuente?: string | null
           id?: string
           proyecto_id: string
           valor?: string | null
         }
         Update: {
           clave?: string
+          community_manager?: string | null
           created_at?: string
+          fuente?: string | null
           id?: string
           proyecto_id?: string
           valor?: string | null

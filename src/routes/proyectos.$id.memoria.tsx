@@ -50,6 +50,8 @@ interface MemoriaRow {
   proyecto_id: string;
   clave: string;
   valor: string | null;
+  fuente: string | null;
+  community_manager: string | null;
   created_at: string;
 }
 

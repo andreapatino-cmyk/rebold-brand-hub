@@ -50,6 +50,8 @@ interface MemoriaRow {
   proyecto_id: string;
   clave: string;
   valor: string | null;
+  fuente: string | null;
+  community_manager: string | null;
   created_at: string;
 }
 
@@ -182,7 +184,15 @@ function MemoriaPage() {
                       key={r.id}
                       className="group flex items-start gap-2 rounded-lg border border-border/60 bg-background/40 p-3"
                     >
-                      <p className="text-sm flex-1 leading-relaxed break-words">{r.valor}</p>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm leading-relaxed break-words">{r.valor}</p>
+                        {(r.fuente || r.community_manager) && (
+                          <p className="text-[10px] text-muted-foreground mt-1.5 flex flex-wrap gap-x-2">
+                            {r.fuente && <span>Fuente: {r.fuente}</span>}
+                            {r.community_manager && <span>CM: {r.community_manager}</span>}
+                          </p>
+                        )}
+                      </div>
                       <button
                         onClick={() => delMut.mutate(r.id)}
                         disabled={delMut.isPending}

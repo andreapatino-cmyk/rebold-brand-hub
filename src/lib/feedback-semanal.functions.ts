@@ -44,7 +44,12 @@ export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
       accion: "feedback_semanal",
       community_manager: data.community_manager,
       semana: data.semana,
-      items: data.items,
+      fuente: "feedback_semanal",
+      items: data.items.map((item) => ({
+        ...item,
+        community_manager: data.community_manager,
+        fuente: "feedback_semanal",
+      })),
     };
     const res = await fetch("https://n8n-m0b3.onrender.com/webhook/feedback-semanal", {
       method: "POST",

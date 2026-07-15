@@ -404,6 +404,19 @@ function ProyectosPage() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Klaviyo API Key <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <Input
+                type="password"
+                value={editKlaviyo}
+                onChange={(e) => setEditKlaviyo(e.target.value)}
+                placeholder="pk_..."
+                autoComplete="off"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Se usa para leer flujos y métricas de Klaviyo al generar flujos de email.
+              </p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)}>Cancelar</Button>

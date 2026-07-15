@@ -179,6 +179,7 @@ function ProyectosPage() {
     setEditRedes(p.redes ?? []);
     setEditPilares(p.pilares ?? []);
     setEditCM(p.community_manager ?? "");
+    setEditKlaviyo(p.klaviyo_api_key ?? "");
     setEditOpen(true);
   };
 

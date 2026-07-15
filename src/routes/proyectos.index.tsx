@@ -195,6 +195,7 @@ function ProyectosPage() {
       redes: editRedes,
       pilares: editPilares,
       community_manager: editCM || null,
+      klaviyo_api_key: editKlaviyo.trim() || null,
       updated_at: new Date().toISOString(),
     } as any).eq("id", editProyecto.id);
     setEditSaving(false);

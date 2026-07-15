@@ -287,6 +287,7 @@ export type Database = {
           created_at: string
           estado_ultima_parrilla: string | null
           id: string
+          klaviyo_api_key: string | null
           nombre: string
           pais: string | null
           pilares: string[]
@@ -300,6 +301,7 @@ export type Database = {
           created_at?: string
           estado_ultima_parrilla?: string | null
           id?: string
+          klaviyo_api_key?: string | null
           nombre: string
           pais?: string | null
           pilares?: string[]
@@ -313,6 +315,7 @@ export type Database = {
           created_at?: string
           estado_ultima_parrilla?: string | null
           id?: string
+          klaviyo_api_key?: string | null
           nombre?: string
           pais?: string | null
           pilares?: string[]

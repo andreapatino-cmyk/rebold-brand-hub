@@ -5,6 +5,7 @@ const ALLOWED = new Set([
   "email-marketing",
   "generar-flujos-email",
   "generar-cuerpo-email",
+  "klaviyo-metricas",
 ]);
 
 export const callN8nWebhook = createServerFn({ method: "POST" })

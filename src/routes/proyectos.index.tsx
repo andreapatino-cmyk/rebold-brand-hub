@@ -167,6 +167,7 @@ function ProyectosPage() {
   const [editRedes, setEditRedes] = useState<string[]>([]);
   const [editPilares, setEditPilares] = useState<string[]>([]);
   const [editCM, setEditCM] = useState<string>("");
+  const [editKlaviyo, setEditKlaviyo] = useState<string>("");
   const [editSaving, setEditSaving] = useState(false);
 
   const openEdit = (p: any, e: React.MouseEvent) => {
@@ -178,6 +179,7 @@ function ProyectosPage() {
     setEditRedes(p.redes ?? []);
     setEditPilares(p.pilares ?? []);
     setEditCM(p.community_manager ?? "");
+    setEditKlaviyo(p.klaviyo_api_key ?? "");
     setEditOpen(true);
   };
 
@@ -193,6 +195,7 @@ function ProyectosPage() {
       redes: editRedes,
       pilares: editPilares,
       community_manager: editCM || null,
+      klaviyo_api_key: editKlaviyo.trim() || null,
       updated_at: new Date().toISOString(),
     } as any).eq("id", editProyecto.id);
     setEditSaving(false);
@@ -400,6 +403,19 @@ function ProyectosPage() {
                   <SelectItem value="Alexandra Salas">Alexandra Salas</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Klaviyo API Key <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+              <Input
+                type="password"
+                value={editKlaviyo}
+                onChange={(e) => setEditKlaviyo(e.target.value)}
+                placeholder="pk_..."
+                autoComplete="off"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Se usa para leer flujos y métricas de Klaviyo al generar flujos de email.
+              </p>
             </div>
           </div>
           <DialogFooter>

@@ -1,0 +1,1 @@
+ALTER TABLE public.proyectos ADD COLUMN IF NOT EXISTS klaviyo_api_key text;

@@ -635,8 +635,46 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
       const tono_de_voz = get("tono_de_voz") || get("tono");
 
       const { data: proyecto } = await supabase
-        .from("proyectos").select("nombre,pais,pilares").eq("id", proyectoId).maybeSingle();
+        .from("proyectos").select("nombre,pais,pilares,klaviyo_api_key").eq("id", proyectoId).maybeSingle();
 
+      // 1) Consultar Klaviyo para obtener los flujos activos
+      let flujos_actuales: any = [];
+      const klaviyoKey = (proyecto as any)?.klaviyo_api_key as string | null | undefined;
+      if (klaviyoKey && klaviyoKey.trim().length > 0) {
+        try {
+          const { raw: rawK } = await callWebhook({
+            data: {
+              path: "klaviyo-metricas",
+              payload: {
+                klaviyo_api_key: klaviyoKey,
+                proyecto_id: proyectoId,
+                proyecto_nombre: proyecto?.nombre ?? "",
+              },
+            },
+          });
+          const cleanK = rawK.startsWith("=") ? rawK.slice(1) : rawK;
+          let parsedK: any = null;
+          try { parsedK = JSON.parse(cleanK); } catch { /* */ }
+          if (typeof parsedK === "string") {
+            try { parsedK = JSON.parse(parsedK); } catch { /* */ }
+          }
+          const rootK = Array.isArray(parsedK) ? parsedK[0] : parsedK;
+          flujos_actuales =
+            rootK?.flujos_actuales ??
+            rootK?.resultado?.flujos_actuales ??
+            rootK?.flujos ??
+            rootK?.resultado?.flujos ??
+            rootK?.resultado ??
+            rootK ??
+            [];
+        } catch (e: any) {
+          toast.warning(`No se pudieron leer los flujos de Klaviyo: ${e?.message ?? "error"}`);
+        }
+      } else {
+        toast.info("Sin Klaviyo API key: se generarán flujos sin contexto actual.");
+      }
+
+      // 2) Generar flujos con el contexto de Klaviyo
       const body = {
         accion: "generar_flujos",
         proyecto: {
@@ -647,7 +685,7 @@ function FlujosEmail({ proyectoId }: { proyectoId: string }) {
           preferencias,
           vetos,
         },
-        flujos_actuales: [],
+        flujos_actuales,
         metricas: {},
       };
 

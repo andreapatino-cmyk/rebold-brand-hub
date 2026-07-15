@@ -167,6 +167,7 @@ function ProyectosPage() {
   const [editRedes, setEditRedes] = useState<string[]>([]);
   const [editPilares, setEditPilares] = useState<string[]>([]);
   const [editCM, setEditCM] = useState<string>("");
+  const [editKlaviyo, setEditKlaviyo] = useState<string>("");
   const [editSaving, setEditSaving] = useState(false);
 
   const openEdit = (p: any, e: React.MouseEvent) => {

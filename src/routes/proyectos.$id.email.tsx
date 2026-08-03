@@ -79,7 +79,7 @@ function EmailPage() {
           <CuerpoEmail proyectoId={proyectoId} />
         </TabsContent>
         <TabsContent value="metricas" className="mt-6">
-          <MetricasEmail />
+          <MetricasEmail proyectoId={proyectoId} />
         </TabsContent>
       </Tabs>
     </div>

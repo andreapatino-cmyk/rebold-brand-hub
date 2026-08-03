@@ -79,7 +79,7 @@ function EmailPage() {
           <CuerpoEmail proyectoId={proyectoId} />
         </TabsContent>
         <TabsContent value="metricas" className="mt-6">
-          <MetricasEmail />
+          <MetricasEmail proyectoId={proyectoId} />
         </TabsContent>
       </Tabs>
     </div>
@@ -1045,18 +1045,113 @@ ${[resultado.saludo, resultado.introduccion, resultado.cuerpo_principal, resulta
 
 /* ------------------ MÉTRICAS ------------------ */
 
-function MetricasEmail() {
+function MetricasEmail({ proyectoId }: { proyectoId: string }) {
+  const callWebhook = useServerFn(callN8nWebhook);
+  const [cargando, setCargando] = useState(false);
+  const [totalCampanas, setTotalCampanas] = useState<number | null>(null);
+  const [flujos, setFlujos] = useState<any[]>([]);
+  const [consultado, setConsultado] = useState(false);
+
+  async function verMetricas() {
+    setCargando(true);
+    try {
+      const { data: proyecto } = await supabase
+        .from("proyectos").select("nombre,klaviyo_api_key").eq("id", proyectoId).maybeSingle();
+      const klaviyoKey = (proyecto as any)?.klaviyo_api_key as string | null | undefined;
+      if (!klaviyoKey || klaviyoKey.trim().length === 0) {
+        toast.error("Este proyecto no tiene Klaviyo API Key guardada.");
+        return;
+      }
+      const { raw } = await callWebhook({
+        data: {
+          path: "klaviyo-metricas",
+          payload: {
+            klaviyo_api_key: klaviyoKey,
+            proyecto_id: proyectoId,
+            proyecto_nombre: proyecto?.nombre ?? "",
+          },
+        },
+      });
+      const clean = raw.startsWith("=") ? raw.slice(1) : raw;
+      let parsed: any = null;
+      try { parsed = JSON.parse(clean); } catch { /* */ }
+      if (typeof parsed === "string") {
+        try { parsed = JSON.parse(parsed); } catch { /* */ }
+      }
+      const root = Array.isArray(parsed) ? parsed[0] : parsed;
+      const res = root?.resultado ?? root ?? {};
+
+      const listaFlujos =
+        res?.flujos_activos ?? res?.flujos_actuales ?? res?.flujos ?? [];
+      const total =
+        res?.total_campanas ??
+        res?.campanas_recientes_total ??
+        (Array.isArray(res?.campanas_recientes) ? res.campanas_recientes.length : undefined) ??
+        (Array.isArray(res?.campanas) ? res.campanas.length : null);
+
+      setFlujos(Array.isArray(listaFlujos) ? listaFlujos : []);
+      setTotalCampanas(typeof total === "number" ? total : null);
+      setConsultado(true);
+      toast.success("Métricas de Klaviyo cargadas");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error al consultar Klaviyo");
+    } finally {
+      setCargando(false);
+    }
+  }
+
   return (
-    <div className="rounded-2xl border border-dashed border-border/60 p-12 text-center">
-      <BarChart3 className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
-      <h3 className="font-display text-lg font-semibold">Conecta Klaviyo</h3>
-      <p className="text-sm text-muted-foreground mt-2 max-w-md mx-auto">
-        Próximamente podrás conectar tu cuenta de Klaviyo para ver aperturas, clics, conversiones y
-        comparar el rendimiento de cada campaña directamente desde Rebold.
-      </p>
-      <Button variant="outline" className="mt-6" disabled>
-        Conectar Klaviyo · Próximamente
-      </Button>
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-card/40 p-5">
+        <div>
+          <h3 className="font-display text-lg font-semibold">Klaviyo</h3>
+          <p className="text-sm text-muted-foreground">
+            Consulta las campañas recientes y los flujos activos de la cuenta conectada.
+          </p>
+        </div>
+        <Button onClick={verMetricas} disabled={cargando} className="gradient-primary">
+          {cargando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <BarChart3 className="h-4 w-4 mr-2" />}
+          Ver métricas de Klaviyo
+        </Button>
+      </div>
+
+      {consultado && (
+        <>
+          <div className="rounded-2xl border border-border bg-card/40 p-5">
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Campañas recientes</div>
+            <div className="font-display text-3xl font-bold mt-1">{totalCampanas ?? "—"}</div>
+          </div>
+
+          <div className="rounded-2xl border border-border bg-card/40 p-5">
+            <div className="flex items-center gap-2 mb-4">
+              <Workflow className="h-4 w-4 text-primary" />
+              <h4 className="font-display font-semibold">Flujos activos ({flujos.length})</h4>
+            </div>
+            {flujos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No se encontraron flujos activos.</p>
+            ) : (
+              <div className="space-y-3">
+                {flujos.map((f: any, i: number) => (
+                  <div key={i} className="rounded-lg border border-border/60 bg-background/40 p-4">
+                    <div className="font-medium">{f?.nombre ?? f?.name ?? `Flujo ${i + 1}`}</div>
+                    {(f?.trigger ?? f?.disparador) && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Trigger: {f?.trigger ?? f?.disparador}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {!consultado && !cargando && (
+        <div className="rounded-2xl border border-dashed border-border/60 p-12 text-center text-sm text-muted-foreground">
+          Pulsa “Ver métricas de Klaviyo” para cargar los datos.
+        </div>
+      )}
     </div>
   );
 }

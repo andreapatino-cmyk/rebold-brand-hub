@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Trash2,
   Mail, GitBranch, FileText, BarChart3, Download, Workflow, Users, Lightbulb,
+  CheckCircle2, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -1045,12 +1046,29 @@ ${[resultado.saludo, resultado.introduccion, resultado.cuerpo_principal, resulta
 
 /* ------------------ MÉTRICAS ------------------ */
 
+function asArray(v: any): any[] {
+  if (Array.isArray(v)) return v;
+  if (v === null || v === undefined || v === "") return [];
+  return [v];
+}
+function itemText(x: any): string {
+  if (typeof x === "string") return x;
+  return x?.titulo ?? x?.nombre ?? x?.flujo ?? x?.recomendacion ?? x?.texto ?? JSON.stringify(x);
+}
+function itemDesc(x: any): string | null {
+  if (typeof x === "string" || !x || typeof x !== "object") return null;
+  return x?.descripcion ?? x?.razon ?? x?.detalle ?? null;
+}
+
 function MetricasEmail({ proyectoId }: { proyectoId: string }) {
   const callWebhook = useServerFn(callN8nWebhook);
   const [cargando, setCargando] = useState(false);
   const [totalCampanas, setTotalCampanas] = useState<number | null>(null);
+  const [campanas, setCampanas] = useState<any[]>([]);
   const [flujos, setFlujos] = useState<any[]>([]);
   const [consultado, setConsultado] = useState(false);
+  const [analizando, setAnalizando] = useState(false);
+  const [analisis, setAnalisis] = useState<any | null>(null);
 
   async function verMetricas() {
     setCargando(true);
@@ -1083,20 +1101,59 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
 
       const listaFlujos =
         res?.flujos_activos ?? res?.flujos_actuales ?? res?.flujos ?? [];
+      const listaCampanas = res?.campanas_recientes ?? res?.campanas ?? [];
       const total =
         res?.total_campanas ??
         res?.campanas_recientes_total ??
-        (Array.isArray(res?.campanas_recientes) ? res.campanas_recientes.length : undefined) ??
-        (Array.isArray(res?.campanas) ? res.campanas.length : null);
+        (Array.isArray(listaCampanas) ? listaCampanas.length : null);
 
       setFlujos(Array.isArray(listaFlujos) ? listaFlujos : []);
+      setCampanas(Array.isArray(listaCampanas) ? listaCampanas : []);
       setTotalCampanas(typeof total === "number" ? total : null);
+      setAnalisis(null);
       setConsultado(true);
       toast.success("Métricas de Klaviyo cargadas");
     } catch (e: any) {
       toast.error(e?.message ?? "Error al consultar Klaviyo");
     } finally {
       setCargando(false);
+    }
+  }
+
+  async function analizarConIA() {
+    setAnalizando(true);
+    try {
+      const { data: proyecto } = await supabase
+        .from("proyectos").select("nombre,pais").eq("id", proyectoId).maybeSingle();
+      const { raw } = await callWebhook({
+        data: {
+          path: "email-marketing",
+          payload: {
+            accion: "analizar_metricas",
+            proyecto: {
+              nombre_marca: proyecto?.nombre ?? "",
+              pais: proyecto?.pais ?? "",
+              industria: (proyecto as any)?.industria ?? null,
+            },
+            flujos_activos: flujos,
+            campanas_recientes: campanas,
+          },
+        },
+      });
+      const clean = raw.startsWith("=") ? raw.slice(1) : raw;
+      let parsed: any = null;
+      try { parsed = JSON.parse(clean); } catch { /* */ }
+      if (typeof parsed === "string") {
+        try { parsed = JSON.parse(parsed); } catch { /* */ }
+      }
+      const root = Array.isArray(parsed) ? parsed[0] : parsed;
+      const res = root?.resultado ?? root ?? {};
+      setAnalisis(res);
+      toast.success("Análisis generado");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error al analizar con IA");
+    } finally {
+      setAnalizando(false);
     }
   }
 
@@ -1122,6 +1179,29 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
             <div className="font-display text-3xl font-bold mt-1">{totalCampanas ?? "—"}</div>
           </div>
 
+          {campanas.length > 0 && (
+            <div className="rounded-2xl border border-border bg-card/40 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <Mail className="h-4 w-4 text-primary" />
+                <h4 className="font-display font-semibold">Campañas ({campanas.length})</h4>
+              </div>
+              <div className="space-y-3">
+                {campanas.map((c: any, i: number) => (
+                  <div key={i} className="rounded-lg border border-border/60 bg-background/40 p-4">
+                    <div className="font-medium">
+                      {c?.nombre ?? c?.name ?? c?.asunto ?? c?.subject ?? `Campaña ${i + 1}`}
+                    </div>
+                    {(c?.fecha ?? c?.send_date ?? c?.date) && (
+                      <div className="text-xs text-muted-foreground mt-1">
+                        {c?.fecha ?? c?.send_date ?? c?.date}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-2xl border border-border bg-card/40 p-5">
             <div className="flex items-center gap-2 mb-4">
               <Workflow className="h-4 w-4 text-primary" />
@@ -1144,6 +1224,109 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
               </div>
             )}
           </div>
+
+          <div className="flex justify-end">
+            <Button onClick={analizarConIA} disabled={analizando} className="gradient-primary">
+              {analizando ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Sparkles className="h-4 w-4 mr-2" />}
+              {analizando ? "Analizando..." : "Analizar con IA"}
+            </Button>
+          </div>
+
+          {analisis && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <h4 className="font-display font-semibold">Análisis de métricas</h4>
+              </div>
+
+              {analisis?.resumen_flujos && (
+                <div className="rounded-2xl border border-border bg-card/40 p-5">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Resumen de flujos</div>
+                  <p className="text-sm whitespace-pre-wrap">{analisis.resumen_flujos}</p>
+                </div>
+              )}
+
+              {asArray(analisis?.flujos_faltantes).length > 0 && (
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <AlertTriangle className="h-4 w-4 text-amber-400" />
+                    <h5 className="font-display font-semibold text-amber-300">Flujos faltantes</h5>
+                  </div>
+                  <ul className="space-y-2">
+                    {asArray(analisis.flujos_faltantes).map((x: any, i: number) => (
+                      <li key={i} className="text-sm">
+                        <span className="font-medium">{itemText(x)}</span>
+                        {itemDesc(x) && <span className="text-muted-foreground"> — {itemDesc(x)}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-2">
+                {asArray(analisis?.fortalezas).length > 0 && (
+                  <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/5 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                      <h5 className="font-display font-semibold text-emerald-300">Fortalezas</h5>
+                    </div>
+                    <ul className="space-y-2">
+                      {asArray(analisis.fortalezas).map((x: any, i: number) => (
+                        <li key={i} className="text-sm">
+                          <span className="font-medium">{itemText(x)}</span>
+                          {itemDesc(x) && <span className="text-muted-foreground"> — {itemDesc(x)}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {asArray(analisis?.debilidades).length > 0 && (
+                  <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                      <AlertTriangle className="h-4 w-4 text-red-400" />
+                      <h5 className="font-display font-semibold text-red-300">Debilidades</h5>
+                    </div>
+                    <ul className="space-y-2">
+                      {asArray(analisis.debilidades).map((x: any, i: number) => (
+                        <li key={i} className="text-sm">
+                          <span className="font-medium">{itemText(x)}</span>
+                          {itemDesc(x) && <span className="text-muted-foreground"> — {itemDesc(x)}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {asArray(analisis?.recomendaciones).length > 0 && (
+                <div className="rounded-2xl border border-border bg-card/40 p-5">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Lightbulb className="h-4 w-4 text-primary" />
+                    <h5 className="font-display font-semibold">Recomendaciones</h5>
+                  </div>
+                  <ul className="space-y-2">
+                    {asArray(analisis.recomendaciones).map((x: any, i: number) => (
+                      <li key={i} className="text-sm flex gap-2">
+                        <span className="text-primary font-semibold">{i + 1}.</span>
+                        <span>
+                          <span className="font-medium">{itemText(x)}</span>
+                          {itemDesc(x) && <span className="text-muted-foreground"> — {itemDesc(x)}</span>}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {(analisis?.conclusion ?? analisis?.conclusión) && (
+                <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Conclusión</div>
+                  <p className="text-sm whitespace-pre-wrap">{analisis.conclusion ?? analisis.conclusión}</p>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 

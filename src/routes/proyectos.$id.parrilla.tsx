@@ -159,6 +159,46 @@ function ParrillaPage() {
     qc.invalidateQueries({ queryKey: ["publicaciones", parrilla.id] });
   };
 
+  // --- Editar publicación ---
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ fecha: "", red: "Instagram", tipo: "Post", titulo: "", copy: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEditPublicacion = (p: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditId(p.id);
+    setEditForm({
+      fecha: p.fecha,
+      red: p.red,
+      tipo: p.tipo ?? "Post",
+      titulo: p.titulo ?? "",
+      copy: p.copy ?? "",
+    });
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editId || !parrilla) return;
+    if (!editForm.titulo.trim()) return toast.error("Añade un título");
+    if (!editForm.fecha) return toast.error("Añade una fecha");
+    setSavingEdit(true);
+    const { error } = await supabase.from("publicaciones").update({
+      fecha: editForm.fecha,
+      red: editForm.red,
+      tipo: editForm.tipo,
+      titulo: editForm.titulo.trim(),
+      copy: editForm.copy.trim() || null,
+    }).eq("id", editId);
+    setSavingEdit(false);
+    if (error) return toast.error(error.message);
+    toast.success("Publicación actualizada");
+    setEditOpen(false);
+    setEditId(null);
+    qc.invalidateQueries({ queryKey: ["publicaciones", parrilla.id] });
+  };
+
   // --- Evaluación ---
   const [evaluando, setEvaluando] = useState(false);
 
@@ -508,9 +548,9 @@ function ParrillaPage() {
                       {items.slice(0, 3).map((p) => (
                         <div
                           key={p.id}
-                          className="group/pub relative text-[10px] leading-tight px-1.5 py-1 rounded bg-primary/15 text-primary border-l-2 border-primary truncate"
-                          title={p.titulo ?? ""}
-                          onClick={(e) => e.stopPropagation()}
+                          className="group/pub relative text-[10px] leading-tight px-1.5 py-1 rounded bg-primary/15 text-primary border-l-2 border-primary truncate cursor-pointer hover:bg-primary/25 transition"
+                          title={`${p.titulo ?? ""} — clic para editar`}
+                          onClick={(e) => openEditPublicacion(p, e)}
                         >
                           <span className="font-semibold uppercase tracking-wider mr-1">{p.red.slice(0,2)}</span>
                           {p.titulo}

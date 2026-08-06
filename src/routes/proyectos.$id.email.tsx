@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft, ChevronRight, Plus, Sparkles, Loader2, Trash2,
   Mail, GitBranch, FileText, BarChart3, Download, Workflow, Users, Lightbulb,
+  CheckCircle2, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";

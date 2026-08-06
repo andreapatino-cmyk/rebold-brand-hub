@@ -626,6 +626,56 @@ function ParrillaPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog editar publicación */}
+      <Dialog open={editOpen} onOpenChange={(o) => { if (!savingEdit) { setEditOpen(o); if (!o) setEditId(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar publicación</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Fecha</Label>
+                <Input type="date" value={editForm.fecha} onChange={(e) => setEditForm({ ...editForm, fecha: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Red</Label>
+                <Select value={editForm.red} onValueChange={(v) => setEditForm({ ...editForm, red: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {REDES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={editForm.tipo} onValueChange={(v) => setEditForm({ ...editForm, tipo: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Título</Label>
+              <Input value={editForm.titulo} onChange={(e) => setEditForm({ ...editForm, titulo: e.target.value })} placeholder="Ej. Lanzamiento colección verano" />
+            </div>
+            <div className="space-y-2">
+              <Label>Copy</Label>
+              <Textarea rows={4} value={editForm.copy} onChange={(e) => setEditForm({ ...editForm, copy: e.target.value })} placeholder="Texto que acompaña la publicación…" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>Cancelar</Button>
+            <Button onClick={saveEdit} disabled={savingEdit} className="gradient-primary">
+              {savingEdit && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Guardar cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog importar Excel */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
         <DialogContent className="max-w-3xl">

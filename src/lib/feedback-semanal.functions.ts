@@ -17,39 +17,33 @@ export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
     const d = data as {
       community_manager?: string;
       semana?: string;
-      items?: Array<{ proyecto_id: string; proyecto_nombre: string; feedback: string }>;
+      feedbacks?: Array<{ proyecto_id: string; proyecto_nombre: string; feedback: string }>;
     };
     if (!d?.community_manager || !CMS.includes(d.community_manager as (typeof CMS)[number])) {
       throw new Error("Community manager inválido");
     }
-    if (!Array.isArray(d.items) || d.items.length === 0) {
+    if (!Array.isArray(d.feedbacks) || d.feedbacks.length === 0) {
       throw new Error("Sin feedback para enviar");
     }
-    const items = d.items
+    const feedbacks = d.feedbacks
       .filter((x) => x && typeof x.proyecto_id === "string" && typeof x.feedback === "string" && x.feedback.trim().length > 0)
       .map((x) => ({
         proyecto_id: x.proyecto_id,
         proyecto_nombre: String(x.proyecto_nombre ?? ""),
         feedback: x.feedback.trim(),
       }));
-    if (items.length === 0) throw new Error("Sin feedback para enviar");
+    if (feedbacks.length === 0) throw new Error("Sin feedback para enviar");
     return {
       community_manager: d.community_manager,
       semana: d.semana || new Date().toISOString().slice(0, 10),
-      items,
+      feedbacks,
     };
   })
   .handler(async ({ data }) => {
     const payload = {
-      accion: "feedback_semanal",
       community_manager: data.community_manager,
       semana: data.semana,
-      fuente: "feedback_semanal",
-      items: data.items.map((item) => ({
-        ...item,
-        community_manager: data.community_manager,
-        fuente: "feedback_semanal",
-      })),
+      feedbacks: data.feedbacks,
     };
     const res = await fetch("https://n8n-m0b3.onrender.com/webhook/feedback-semanal", {
       method: "POST",
@@ -58,5 +52,5 @@ export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
     });
     const text = await res.text();
     if (!res.ok) throw new Error(`Webhook ${res.status}: ${text.slice(0, 200)}`);
-    return { ok: true, enviados: data.items.length, raw: text };
+    return { ok: true, enviados: data.feedbacks.length, raw: text };
   });

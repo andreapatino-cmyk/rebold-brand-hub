@@ -56,7 +56,7 @@ function FeedbackSemanalPage() {
     if (items.length === 0) return toast.error("Escribe feedback en al menos un proyecto");
     setEnviando(true);
     try {
-      const r = await guardar({ data: { community_manager: cm, semana, items } });
+      const r = await guardar({ data: { community_manager: cm, semana, feedbacks: items } });
       toast.success(`Feedback enviado (${r.enviados} ${r.enviados === 1 ? "proyecto" : "proyectos"})`);
       setFeedbacks({});
     } catch (e) {
@@ -125,7 +125,7 @@ function FeedbackSemanalPage() {
                   <Textarea
                     value={feedbacks[p.id] ?? ""}
                     onChange={(e) => setFB(p.id, e.target.value)}
-                    placeholder="Escribe aquí el feedback que el cliente dio esta semana…"
+                    placeholder="Escribe aquí el feedback de esta semana..."
                     rows={4}
                     maxLength={2000}
                   />

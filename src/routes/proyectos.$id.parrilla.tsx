@@ -159,6 +159,46 @@ function ParrillaPage() {
     qc.invalidateQueries({ queryKey: ["publicaciones", parrilla.id] });
   };
 
+  // --- Editar publicación ---
+  const [editOpen, setEditOpen] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ fecha: "", red: "Instagram", tipo: "Post", titulo: "", copy: "" });
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const openEditPublicacion = (p: any, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditId(p.id);
+    setEditForm({
+      fecha: p.fecha,
+      red: p.red,
+      tipo: p.tipo ?? "Post",
+      titulo: p.titulo ?? "",
+      copy: p.copy ?? "",
+    });
+    setEditOpen(true);
+  };
+
+  const saveEdit = async () => {
+    if (!editId || !parrilla) return;
+    if (!editForm.titulo.trim()) return toast.error("Añade un título");
+    if (!editForm.fecha) return toast.error("Añade una fecha");
+    setSavingEdit(true);
+    const { error } = await supabase.from("publicaciones").update({
+      fecha: editForm.fecha,
+      red: editForm.red,
+      tipo: editForm.tipo,
+      titulo: editForm.titulo.trim(),
+      copy: editForm.copy.trim() || null,
+    }).eq("id", editId);
+    setSavingEdit(false);
+    if (error) return toast.error(error.message);
+    toast.success("Publicación actualizada");
+    setEditOpen(false);
+    setEditId(null);
+    qc.invalidateQueries({ queryKey: ["publicaciones", parrilla.id] });
+  };
+
   // --- Evaluación ---
   const [evaluando, setEvaluando] = useState(false);
 
@@ -508,9 +548,9 @@ function ParrillaPage() {
                       {items.slice(0, 3).map((p) => (
                         <div
                           key={p.id}
-                          className="group/pub relative text-[10px] leading-tight px-1.5 py-1 rounded bg-primary/15 text-primary border-l-2 border-primary truncate"
-                          title={p.titulo ?? ""}
-                          onClick={(e) => e.stopPropagation()}
+                          className="group/pub relative text-[10px] leading-tight px-1.5 py-1 rounded bg-primary/15 text-primary border-l-2 border-primary truncate cursor-pointer hover:bg-primary/25 transition"
+                          title={`${p.titulo ?? ""} — clic para editar`}
+                          onClick={(e) => openEditPublicacion(p, e)}
                         >
                           <span className="font-semibold uppercase tracking-wider mr-1">{p.red.slice(0,2)}</span>
                           {p.titulo}
@@ -581,6 +621,56 @@ function ParrillaPage() {
           <DialogFooter>
             <Button onClick={save} className="gradient-primary">
               <Plus className="h-4 w-4 mr-2" /> Añadir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog editar publicación */}
+      <Dialog open={editOpen} onOpenChange={(o) => { if (!savingEdit) { setEditOpen(o); if (!o) setEditId(null); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar publicación</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Fecha</Label>
+                <Input type="date" value={editForm.fecha} onChange={(e) => setEditForm({ ...editForm, fecha: e.target.value })} />
+              </div>
+              <div className="space-y-2">
+                <Label>Red</Label>
+                <Select value={editForm.red} onValueChange={(v) => setEditForm({ ...editForm, red: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {REDES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={editForm.tipo} onValueChange={(v) => setEditForm({ ...editForm, tipo: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Título</Label>
+              <Input value={editForm.titulo} onChange={(e) => setEditForm({ ...editForm, titulo: e.target.value })} placeholder="Ej. Lanzamiento colección verano" />
+            </div>
+            <div className="space-y-2">
+              <Label>Copy</Label>
+              <Textarea rows={4} value={editForm.copy} onChange={(e) => setEditForm({ ...editForm, copy: e.target.value })} placeholder="Texto que acompaña la publicación…" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingEdit}>Cancelar</Button>
+            <Button onClick={saveEdit} disabled={savingEdit} className="gradient-primary">
+              {savingEdit && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Guardar cambios
             </Button>
           </DialogFooter>
         </DialogContent>

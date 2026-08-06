@@ -1046,12 +1046,29 @@ ${[resultado.saludo, resultado.introduccion, resultado.cuerpo_principal, resulta
 
 /* ------------------ MÉTRICAS ------------------ */
 
+function asArray(v: any): any[] {
+  if (Array.isArray(v)) return v;
+  if (v === null || v === undefined || v === "") return [];
+  return [v];
+}
+function itemText(x: any): string {
+  if (typeof x === "string") return x;
+  return x?.titulo ?? x?.nombre ?? x?.flujo ?? x?.recomendacion ?? x?.texto ?? JSON.stringify(x);
+}
+function itemDesc(x: any): string | null {
+  if (typeof x === "string" || !x || typeof x !== "object") return null;
+  return x?.descripcion ?? x?.razon ?? x?.detalle ?? null;
+}
+
 function MetricasEmail({ proyectoId }: { proyectoId: string }) {
   const callWebhook = useServerFn(callN8nWebhook);
   const [cargando, setCargando] = useState(false);
   const [totalCampanas, setTotalCampanas] = useState<number | null>(null);
+  const [campanas, setCampanas] = useState<any[]>([]);
   const [flujos, setFlujos] = useState<any[]>([]);
   const [consultado, setConsultado] = useState(false);
+  const [analizando, setAnalizando] = useState(false);
+  const [analisis, setAnalisis] = useState<any | null>(null);
 
   async function verMetricas() {
     setCargando(true);
@@ -1084,20 +1101,59 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
 
       const listaFlujos =
         res?.flujos_activos ?? res?.flujos_actuales ?? res?.flujos ?? [];
+      const listaCampanas = res?.campanas_recientes ?? res?.campanas ?? [];
       const total =
         res?.total_campanas ??
         res?.campanas_recientes_total ??
-        (Array.isArray(res?.campanas_recientes) ? res.campanas_recientes.length : undefined) ??
-        (Array.isArray(res?.campanas) ? res.campanas.length : null);
+        (Array.isArray(listaCampanas) ? listaCampanas.length : null);
 
       setFlujos(Array.isArray(listaFlujos) ? listaFlujos : []);
+      setCampanas(Array.isArray(listaCampanas) ? listaCampanas : []);
       setTotalCampanas(typeof total === "number" ? total : null);
+      setAnalisis(null);
       setConsultado(true);
       toast.success("Métricas de Klaviyo cargadas");
     } catch (e: any) {
       toast.error(e?.message ?? "Error al consultar Klaviyo");
     } finally {
       setCargando(false);
+    }
+  }
+
+  async function analizarConIA() {
+    setAnalizando(true);
+    try {
+      const { data: proyecto } = await supabase
+        .from("proyectos").select("nombre,pais").eq("id", proyectoId).maybeSingle();
+      const { raw } = await callWebhook({
+        data: {
+          path: "email-marketing",
+          payload: {
+            accion: "analizar_metricas",
+            proyecto: {
+              nombre_marca: proyecto?.nombre ?? "",
+              pais: proyecto?.pais ?? "",
+              industria: (proyecto as any)?.industria ?? null,
+            },
+            flujos_activos: flujos,
+            campanas_recientes: campanas,
+          },
+        },
+      });
+      const clean = raw.startsWith("=") ? raw.slice(1) : raw;
+      let parsed: any = null;
+      try { parsed = JSON.parse(clean); } catch { /* */ }
+      if (typeof parsed === "string") {
+        try { parsed = JSON.parse(parsed); } catch { /* */ }
+      }
+      const root = Array.isArray(parsed) ? parsed[0] : parsed;
+      const res = root?.resultado ?? root ?? {};
+      setAnalisis(res);
+      toast.success("Análisis generado");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Error al analizar con IA");
+    } finally {
+      setAnalizando(false);
     }
   }
 

@@ -52,5 +52,5 @@ export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
     });
     const text = await res.text();
     if (!res.ok) throw new Error(`Webhook ${res.status}: ${text.slice(0, 200)}`);
-    return { ok: true, enviados: data.items.length, raw: text };
+    return { ok: true, enviados: data.feedbacks.length, raw: text };
   });

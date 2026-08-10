@@ -1108,6 +1108,7 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
   const [cargando, setCargando] = useState(false);
   const [totalCampanas, setTotalCampanas] = useState<number | null>(null);
   const [campanas, setCampanas] = useState<any[]>([]);
+  const [metricasCampanas, setMetricasCampanas] = useState<any[]>([]);
   const [flujos, setFlujos] = useState<any[]>([]);
   const [consultado, setConsultado] = useState(false);
   const [analizando, setAnalizando] = useState(false);

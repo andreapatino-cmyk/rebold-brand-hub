@@ -1060,7 +1060,50 @@ function itemDesc(x: any): string | null {
   return x?.descripcion ?? x?.razon ?? x?.detalle ?? null;
 }
 
+
+const CAMPOS_ANALISIS = [
+  "resumen_flujos",
+  "flujos_faltantes",
+  "fortalezas",
+  "debilidades",
+  "recomendaciones",
+  "conclusion",
+];
+
+function parseRawN8n(raw: string): any {
+  const clean = String(raw ?? "").trim().replace(/^=+/, "").trim();
+  let parsed: any = null;
+  try { parsed = JSON.parse(clean); } catch { /* */ }
+  let guard = 0;
+  while (typeof parsed === "string" && guard++ < 3) {
+    try { parsed = JSON.parse(parsed); } catch { break; }
+  }
+  return parsed;
+}
+
+// Busca en profundidad el objeto que contiene los campos del análisis
+function extraerAnalisis(raw: string): any | null {
+  const parsed = parseRawN8n(raw);
+  const visto = new Set<any>();
+  const stack: any[] = [parsed];
+  while (stack.length) {
+    const node = stack.shift();
+    if (!node || typeof node !== "object" || visto.has(node)) continue;
+    visto.add(node);
+    if (!Array.isArray(node) && CAMPOS_ANALISIS.some((k) => node[k] != null)) return node;
+    for (const v of Array.isArray(node) ? node : Object.values(node)) {
+      if (v && typeof v === "object") stack.push(v);
+      else if (typeof v === "string" && v.trim().startsWith("{")) {
+        const inner = parseRawN8n(v);
+        if (inner && typeof inner === "object") stack.push(inner);
+      }
+    }
+  }
+  return null;
+}
+
 function MetricasEmail({ proyectoId }: { proyectoId: string }) {
+
   const callWebhook = useServerFn(callN8nWebhook);
   const [cargando, setCargando] = useState(false);
   const [totalCampanas, setTotalCampanas] = useState<number | null>(null);

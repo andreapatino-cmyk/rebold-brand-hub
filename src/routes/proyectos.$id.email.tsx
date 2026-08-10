@@ -1184,6 +1184,7 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
             },
             flujos_activos: flujos,
             campanas_recientes: campanas,
+            metricas_campanas: metricasCampanas,
           },
         },
       });

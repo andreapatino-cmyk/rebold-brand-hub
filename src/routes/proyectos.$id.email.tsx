@@ -1146,6 +1146,8 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
       const listaFlujos =
         res?.flujos_activos ?? res?.flujos_actuales ?? res?.flujos ?? [];
       const listaCampanas = res?.campanas_recientes ?? res?.campanas ?? [];
+      const listaMetricas =
+        res?.metricas_campanas ?? res?.metricas ?? root?.metricas_campanas ?? [];
       const total =
         res?.total_campanas ??
         res?.campanas_recientes_total ??
@@ -1153,6 +1155,7 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
 
       setFlujos(Array.isArray(listaFlujos) ? listaFlujos : []);
       setCampanas(Array.isArray(listaCampanas) ? listaCampanas : []);
+      setMetricasCampanas(Array.isArray(listaMetricas) ? listaMetricas : []);
       setTotalCampanas(typeof total === "number" ? total : null);
       setAnalisis(null);
       setConsultado(true);

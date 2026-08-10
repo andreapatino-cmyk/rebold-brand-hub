@@ -1140,15 +1140,14 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
           },
         },
       });
-      const clean = raw.startsWith("=") ? raw.slice(1) : raw;
-      let parsed: any = null;
-      try { parsed = JSON.parse(clean); } catch { /* */ }
-      if (typeof parsed === "string") {
-        try { parsed = JSON.parse(parsed); } catch { /* */ }
+      const res = extraerAnalisis(raw);
+      if (!res) {
+        console.log("[analizar_metricas] raw sin campos reconocibles:", raw?.slice?.(0, 800));
+        toast.error("El webhook respondió sin datos de análisis.");
+        return;
       }
-      const root = Array.isArray(parsed) ? parsed[0] : parsed;
-      const res = root?.resultado ?? root ?? {};
       setAnalisis(res);
+
       toast.success("Análisis generado");
     } catch (e: any) {
       toast.error(e?.message ?? "Error al analizar con IA");

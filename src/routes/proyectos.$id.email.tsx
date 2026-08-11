@@ -1155,11 +1155,50 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
       const root = Array.isArray(parsed) ? parsed[0] : parsed;
       const res = root?.resultado ?? root ?? {};
 
+      // eslint-disable-next-line no-console
+      console.log("[klaviyo-metricas] raw:", raw);
+      // eslint-disable-next-line no-console
+      console.log("[klaviyo-metricas] parsed:", parsed);
+      // eslint-disable-next-line no-console
+      console.log("[klaviyo-metricas] keys root:", root && typeof root === "object" ? Object.keys(root) : root);
+      // eslint-disable-next-line no-console
+      console.log("[klaviyo-metricas] keys res:", res && typeof res === "object" ? Object.keys(res) : res);
+
+      // Búsqueda recursiva de un array por nombres de clave candidatos
+      const buscarArray = (obj: any, claves: string[], depth = 0): any[] => {
+        if (!obj || typeof obj !== "object" || depth > 6) return [];
+        for (const k of claves) {
+          const v = (obj as any)[k];
+          if (Array.isArray(v) && v.length > 0) return v;
+        }
+        for (const v of Object.values(obj)) {
+          const found = buscarArray(v, claves, depth + 1);
+          if (found.length > 0) return found;
+        }
+        return [];
+      };
+
       const listaFlujos =
-        res?.flujos_activos ?? res?.flujos_actuales ?? res?.flujos ?? [];
-      const listaCampanas = res?.campanas_recientes ?? res?.campanas ?? [];
+        res?.flujos_activos ?? res?.flujos_actuales ?? res?.flujos ??
+        buscarArray(parsed, ["flujos_activos", "flujos_actuales", "flujos", "flows"]);
+      const listaCampanas =
+        res?.campanas_recientes ?? res?.campanas ??
+        buscarArray(parsed, ["campanas_recientes", "campanas", "campaigns"]);
+      const listaMetricas0 =
+        res?.metricas_campanas ?? res?.metricas ?? root?.metricas_campanas;
       const listaMetricas =
-        res?.metricas_campanas ?? res?.metricas ?? root?.metricas_campanas ?? [];
+        Array.isArray(listaMetricas0) && listaMetricas0.length > 0
+          ? listaMetricas0
+          : buscarArray(parsed, [
+              "metricas_campanas",
+              "metricas",
+              "campaign_metrics",
+              "metrics",
+              "estadisticas",
+            ]);
+      // eslint-disable-next-line no-console
+      console.log("[klaviyo-metricas] metricas_campanas detectadas:", listaMetricas);
+
       const total =
         res?.total_campanas ??
         res?.campanas_recientes_total ??

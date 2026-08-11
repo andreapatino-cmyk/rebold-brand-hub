@@ -1223,21 +1223,21 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
     try {
       const { data: proyecto } = await supabase
         .from("proyectos").select("nombre,pais").eq("id", proyectoId).maybeSingle();
-      const { raw } = await callWebhook({
-        data: {
-          path: "email-marketing",
-          payload: {
-            accion: "analizar_metricas",
-            proyecto: {
-              nombre_marca: proyecto?.nombre ?? "",
-              pais: proyecto?.pais ?? "",
-              industria: (proyecto as any)?.industria ?? null,
-            },
-            flujos_activos: flujos,
-            campanas_recientes: campanas,
-            metricas_campanas: metricasCampanas,
-          },
+      const payload = {
+        accion: "analizar_metricas",
+        proyecto: {
+          nombre_marca: proyecto?.nombre ?? "",
+          pais: proyecto?.pais ?? "",
+          industria: (proyecto as any)?.industria ?? null,
         },
+        flujos_activos: flujos,
+        campanas_recientes: campanas,
+        metricas_campanas: metricasCampanas,
+      };
+      // eslint-disable-next-line no-console
+      console.log("[analizar_metricas] payload enviado:", payload);
+      const { raw } = await callWebhook({
+        data: { path: "email-marketing", payload },
       });
       const parsed = parseRawN8n(raw);
       const rootA = Array.isArray(parsed) ? parsed[0] : parsed;

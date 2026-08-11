@@ -49,6 +49,18 @@ function tipoDot(t: string) {
 function tipoLabel(t: string) {
   return TIPOS_EMAIL.find((x) => x.value === t)?.label ?? t;
 }
+function fmtNum(n: number) {
+  if (!Number.isFinite(n) || n === 0) return "—";
+  return n.toLocaleString("es-ES");
+}
+function fmtTasa(raw: any, total: number, parte: number) {
+  if (typeof raw === "string" && raw.includes("%")) return raw;
+  const n = Number(raw);
+  if (Number.isFinite(n)) return `${(n * (n <= 1 ? 100 : 1)).toFixed(2)}%`;
+  if (total > 0 && parte >= 0) return `${((parte / total) * 100).toFixed(2)}%`;
+  return "—";
+}
+
 
 function EmailPage() {
   const { id: proyectoId } = Route.useParams();

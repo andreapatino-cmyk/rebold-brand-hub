@@ -1239,13 +1239,29 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
           },
         },
       });
-      const res = extraerAnalisis(raw);
+      const parsed = parseRawN8n(raw);
+      const rootA = Array.isArray(parsed) ? parsed[0] : parsed;
+      // eslint-disable-next-line no-console
+      console.log("[analizar_metricas] raw:", raw);
+      // eslint-disable-next-line no-console
+      console.log("[analizar_metricas] parsed:", parsed);
+      const directo =
+        rootA?.resultado?.resultado ??
+        rootA?.resultado ??
+        rootA?.output?.resultado ??
+        rootA?.data?.resultado ??
+        null;
+      const esAnalisis = (o: any) =>
+        o && typeof o === "object" && !Array.isArray(o) && CAMPOS_ANALISIS.some((k) => o[k] != null);
+      const res = esAnalisis(directo) ? directo : extraerAnalisis(raw);
       if (!res) {
-        console.log("[analizar_metricas] raw sin campos reconocibles:", raw?.slice?.(0, 800));
+        // eslint-disable-next-line no-console
+        console.log("[analizar_metricas] sin campos reconocibles:", rootA);
         toast.error("El webhook respondió sin datos de análisis.");
         return;
       }
       setAnalisis(res);
+
 
       toast.success("Análisis generado");
     } catch (e: any) {

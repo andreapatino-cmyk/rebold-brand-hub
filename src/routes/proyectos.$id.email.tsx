@@ -49,6 +49,18 @@ function tipoDot(t: string) {
 function tipoLabel(t: string) {
   return TIPOS_EMAIL.find((x) => x.value === t)?.label ?? t;
 }
+function fmtNum(n: number) {
+  if (!Number.isFinite(n) || n === 0) return "—";
+  return n.toLocaleString("es-ES");
+}
+function fmtTasa(raw: any, total: number, parte: number) {
+  if (typeof raw === "string" && raw.includes("%")) return raw;
+  const n = Number(raw);
+  if (Number.isFinite(n)) return `${(n * (n <= 1 ? 100 : 1)).toFixed(2)}%`;
+  if (total > 0 && parte >= 0) return `${((parte / total) * 100).toFixed(2)}%`;
+  return "—";
+}
+
 
 function EmailPage() {
   const { id: proyectoId } = Route.useParams();
@@ -1248,6 +1260,58 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
               </div>
             </div>
           )}
+
+          {metricasCampanas.length > 0 && (
+            <div className="rounded-2xl border border-border bg-card/40 p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart3 className="h-4 w-4 text-primary" />
+                <h4 className="font-display font-semibold">Métricas detalladas</h4>
+              </div>
+              <div className="overflow-x-auto -mx-5 px-5">
+                <table className="w-full text-sm min-w-[720px]">
+                  <thead>
+                    <tr className="border-b border-border/60 text-left text-xs text-muted-foreground">
+                      <th className="pb-3 font-medium">Campaña</th>
+                      <th className="pb-3 font-medium">Fecha de envío</th>
+                      <th className="pb-3 font-medium text-right">Enviados</th>
+                      <th className="pb-3 font-medium text-right">Abiertos</th>
+                      <th className="pb-3 font-medium text-right">Clics</th>
+                      <th className="pb-3 font-medium text-right">Bajas</th>
+                      <th className="pb-3 font-medium text-right">Tasa apertura</th>
+                      <th className="pb-3 font-medium text-right">Tasa clics</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {metricasCampanas.map((m: any, i: number) => {
+                      const nombre = m?.nombre ?? m?.name ?? m?.asunto ?? m?.subject ?? m?.campaign_name ?? `Campaña ${i + 1}`;
+                      const fecha = m?.fecha ?? m?.send_date ?? m?.send_time ?? m?.date ?? m?.created ?? "—";
+                      const enviados = Number(m?.enviados ?? m?.sent ?? m?.recipients ?? m?.send_count ?? 0);
+                      const abiertos = Number(m?.abiertos ?? m?.opened ?? m?.open_count ?? m?.opens ?? 0);
+                      const clics = Number(m?.clics ?? m?.clicks ?? m?.click_count ?? 0);
+                      const bajas = Number(m?.bajas ?? m?.unsubscribed ?? m?.unsubscribes ?? m?.bounced ?? 0);
+                      const tasaAperturaRaw = m?.tasa_apertura ?? m?.open_rate ?? m?.tasa_de_apertura;
+                      const tasaClicsRaw = m?.tasa_clics ?? m?.click_rate ?? m?.tasa_de_clics;
+                      const tasaApertura = fmtTasa(tasaAperturaRaw, enviados, abiertos);
+                      const tasaClics = fmtTasa(tasaClicsRaw, enviados, clics);
+                      return (
+                        <tr key={i} className="hover:bg-background/30 transition-colors">
+                          <td className="py-3 pr-4 font-medium">{nombre}</td>
+                          <td className="py-3 pr-4 text-muted-foreground whitespace-nowrap">{fecha}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums">{fmtNum(enviados)}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums">{fmtNum(abiertos)}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums">{fmtNum(clics)}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums">{fmtNum(bajas)}</td>
+                          <td className="py-3 pr-4 text-right tabular-nums">{tasaApertura}</td>
+                          <td className="py-3 text-right tabular-nums">{tasaClics}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
 
           <div className="rounded-2xl border border-border bg-card/40 p-5">
             <div className="flex items-center gap-2 mb-4">

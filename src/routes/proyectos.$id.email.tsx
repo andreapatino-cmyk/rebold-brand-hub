@@ -1239,13 +1239,29 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
           },
         },
       });
-      const res = extraerAnalisis(raw);
+      const parsed = parseRawN8n(raw);
+      const rootA = Array.isArray(parsed) ? parsed[0] : parsed;
+      // eslint-disable-next-line no-console
+      console.log("[analizar_metricas] raw:", raw);
+      // eslint-disable-next-line no-console
+      console.log("[analizar_metricas] parsed:", parsed);
+      const directo =
+        rootA?.resultado?.resultado ??
+        rootA?.resultado ??
+        rootA?.output?.resultado ??
+        rootA?.data?.resultado ??
+        null;
+      const esAnalisis = (o: any) =>
+        o && typeof o === "object" && !Array.isArray(o) && CAMPOS_ANALISIS.some((k) => o[k] != null);
+      const res = esAnalisis(directo) ? directo : extraerAnalisis(raw);
       if (!res) {
-        console.log("[analizar_metricas] raw sin campos reconocibles:", raw?.slice?.(0, 800));
+        // eslint-disable-next-line no-console
+        console.log("[analizar_metricas] sin campos reconocibles:", rootA);
         toast.error("El webhook respondió sin datos de análisis.");
         return;
       }
       setAnalisis(res);
+
 
       toast.success("Análisis generado");
     } catch (e: any) {
@@ -1322,8 +1338,8 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
                   </thead>
                   <tbody className="divide-y divide-border/40">
                     {metricasCampanas.map((m: any, i: number) => {
-                      const nombre = m?.nombre ?? m?.name ?? m?.asunto ?? m?.subject ?? m?.campaign_name ?? `Campaña ${i + 1}`;
-                      const fecha = m?.fecha ?? m?.send_date ?? m?.send_time ?? m?.date ?? m?.created ?? "—";
+                      const nombre = m?.campana_nombre ?? m?.campaña_nombre ?? m?.nombre_campana ?? m?.nombre ?? m?.name ?? m?.asunto ?? m?.subject ?? m?.campaign_name ?? `Campaña ${i + 1}`;
+                      const fecha = m?.fecha_envio ?? m?.fecha_de_envio ?? m?.fecha ?? m?.send_date ?? m?.send_time ?? m?.date ?? m?.created ?? "—";
                       const enviados = Number(m?.enviados ?? m?.sent ?? m?.recipients ?? m?.send_count ?? 0);
                       const abiertos = Number(m?.abiertos ?? m?.opened ?? m?.open_count ?? m?.opens ?? 0);
                       const clics = Number(m?.clics ?? m?.clicks ?? m?.click_count ?? 0);

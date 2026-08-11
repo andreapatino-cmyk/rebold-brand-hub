@@ -1322,8 +1322,8 @@ function MetricasEmail({ proyectoId }: { proyectoId: string }) {
                   </thead>
                   <tbody className="divide-y divide-border/40">
                     {metricasCampanas.map((m: any, i: number) => {
-                      const nombre = m?.nombre ?? m?.name ?? m?.asunto ?? m?.subject ?? m?.campaign_name ?? `Campaña ${i + 1}`;
-                      const fecha = m?.fecha ?? m?.send_date ?? m?.send_time ?? m?.date ?? m?.created ?? "—";
+                      const nombre = m?.campana_nombre ?? m?.campaña_nombre ?? m?.nombre_campana ?? m?.nombre ?? m?.name ?? m?.asunto ?? m?.subject ?? m?.campaign_name ?? `Campaña ${i + 1}`;
+                      const fecha = m?.fecha_envio ?? m?.fecha_de_envio ?? m?.fecha ?? m?.send_date ?? m?.send_time ?? m?.date ?? m?.created ?? "—";
                       const enviados = Number(m?.enviados ?? m?.sent ?? m?.recipients ?? m?.send_count ?? 0);
                       const abiertos = Number(m?.abiertos ?? m?.opened ?? m?.open_count ?? m?.opens ?? 0);
                       const clics = Number(m?.clics ?? m?.clicks ?? m?.click_count ?? 0);

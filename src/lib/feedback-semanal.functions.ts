@@ -1,5 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { parseRaw, findResultados } from "./feedback-semanal.server";
 
 const CMS = ["Alicia Prieto", "Alexandra Salas"] as const;
 
@@ -27,7 +26,13 @@ export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
       throw new Error("Sin feedback para enviar");
     }
     const feedbacks = d.feedbacks
-      .filter((x) => x && typeof x.proyecto_id === "string" && typeof x.feedback === "string" && x.feedback.trim().length > 0)
+      .filter(
+        (x) =>
+          x &&
+          typeof x.proyecto_id === "string" &&
+          typeof x.feedback === "string" &&
+          x.feedback.trim().length > 0,
+      )
       .map((x) => ({
         proyecto_id: x.proyecto_id,
         proyecto_nombre: String(x.proyecto_nombre ?? ""),
@@ -41,61 +46,61 @@ export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
     };
   })
   .handler(async ({ data }) => {
-    const payload = {
-      community_manager: data.community_manager,
-      semana: data.semana,
-      feedbacks: data.feedbacks,
-    };
     const res = await fetch("https://n8n-m0b3.onrender.com/webhook/feedback-semanal", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        community_manager: data.community_manager,
+        semana: data.semana,
+        feedbacks: data.feedbacks,
+      }),
     });
     const text = await res.text();
     if (!res.ok) throw new Error(`Webhook ${res.status}: ${text.slice(0, 200)}`);
+    return { ok: true, enviados: data.feedbacks.length, raw: text };
+  });
 
-    const parsed = parseRaw(text);
-    console.log("[feedback-semanal] parsed:", JSON.stringify(parsed, null, 2).slice(0, 2000));
-    const resultados = findResultados(parsed);
-    console.log("[feedback-semanal] resultados encontrados:", resultados.length, Array.isArray(resultados) ? resultados.map((r) => ({ proyecto_id: r?.proyecto_id, claves: r?.clasificaciones?.length })) : null);
-    const proyectoIds = new Set(data.feedbacks.map((f) => f.proyecto_id));
-
-    const rows: Array<{
-      proyecto_id: string;
-      clave: string;
-      valor: string;
-      fuente: string;
-      community_manager: string;
-    }> = [];
-
-    for (const r of resultados) {
-      const pid = String(r?.proyecto_id ?? "");
-      if (!proyectoIds.has(pid)) continue;
-      const clasificaciones = Array.isArray(r?.clasificaciones) ? r.clasificaciones : [];
-      console.log(`[feedback-semanal] proyecto ${pid}: ${clasificaciones.length} clasificaciones`);
-      for (const c of clasificaciones) {
-        const clave = String(c?.clave ?? "").trim().toLowerCase();
-        const valor = String(c?.valor ?? "").trim();
-        if (!clave || !valor) continue;
-        rows.push({
-          proyecto_id: pid,
-          clave,
-          valor,
-          fuente: "feedback-semanal",
-          community_manager: data.community_manager,
-        });
-      }
+/** Fallback insert for the public page, where anon has no RLS access to memoria_cliente. */
+export const insertarMemoriaDesdeFeedback = createServerFn({ method: "POST" })
+  .inputValidator((data: unknown) => {
+    const d = data as {
+      community_manager?: string;
+      rows?: Array<{ proyecto_id: string; clave: string; valor: string }>;
+    };
+    if (!d?.community_manager || !CMS.includes(d.community_manager as (typeof CMS)[number])) {
+      throw new Error("Community manager inválido");
     }
-
-    let insertadas = 0;
-    console.log("[feedback-semanal] filas a insertar:", rows.length);
-    if (rows.length > 0) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await supabaseAdmin.from("memoria_cliente").insert(rows);
-      console.log("[feedback-semanal] resultado insercion:", error ? `ERROR ${error.message}` : `OK ${rows.length}`);
-      if (error) throw new Error(`No se pudo guardar en memoria: ${error.message}`);
-      insertadas = rows.length;
-    }
-
-    return { ok: true, enviados: data.feedbacks.length, insertadas, raw: text };
+    const rows = (Array.isArray(d.rows) ? d.rows : [])
+      .filter(
+        (r) =>
+          r &&
+          typeof r.proyecto_id === "string" &&
+          String(r.clave ?? "").trim().length > 0 &&
+          String(r.valor ?? "").trim().length > 0,
+      )
+      .slice(0, 200)
+      .map((r) => ({
+        proyecto_id: r.proyecto_id,
+        clave: String(r.clave).trim().toLowerCase(),
+        valor: String(r.valor).trim().slice(0, 2000),
+      }));
+    if (rows.length === 0) throw new Error("Sin clasificaciones para guardar");
+    return { community_manager: d.community_manager, rows };
+  })
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const ids = Array.from(new Set(data.rows.map((r) => r.proyecto_id)));
+    const { data: proyectos, error: pErr } = await supabaseAdmin
+      .from("proyectos")
+      .select("id")
+      .in("id", ids);
+    if (pErr) throw new Error(pErr.message);
+    const valid = new Set((proyectos ?? []).map((p) => p.id));
+    const rows = data.rows
+      .filter((r) => valid.has(r.proyecto_id))
+      .map((r) => ({ ...r, fuente: "feedback-semanal", community_manager: data.community_manager }));
+    if (rows.length === 0) throw new Error("Proyectos inválidos");
+    const { error } = await supabaseAdmin.from("memoria_cliente").insert(rows);
+    if (error) throw new Error(`No se pudo guardar en memoria: ${error.message}`);
+    return { insertadas: rows.length };
   });

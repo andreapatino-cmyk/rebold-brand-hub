@@ -9,7 +9,13 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { listProyectos, guardarFeedbackSemanal } from "@/lib/feedback-semanal.functions";
+import { supabase } from "@/integrations/supabase/client";
+import { buildMemoriaRows } from "@/lib/feedback-semanal.parse";
+import {
+  listProyectos,
+  guardarFeedbackSemanal,
+  insertarMemoriaDesdeFeedback,
+} from "@/lib/feedback-semanal.functions";
 
 export const Route = createFileRoute("/feedback-semanal")({
   head: () => ({

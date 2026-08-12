@@ -57,9 +57,38 @@ function FeedbackSemanalPage() {
     setEnviando(true);
     try {
       const r = await guardar({ data: { community_manager: cm, semana, feedbacks: items } });
+      console.log("[feedback-semanal] raw webhook:", r.raw);
+
+      const rows = buildMemoriaRows(r.raw, {
+        community_manager: cm,
+        proyectoIds: items.map((i) => i.proyecto_id),
+      });
+
+      let insertadas = 0;
+      if (rows.length > 0) {
+        // 1) Intento directo desde el cliente con el supabase client.
+        const { error } = await supabase.from("memoria_cliente").insert(rows);
+        if (error) {
+          console.warn("[feedback-semanal] insert cliente falló, usando servidor:", error.message);
+          // 2) Esta pantalla es pública (sin login): sin sesión, RLS bloquea el insert.
+          const res = await insertarServidor({
+            data: {
+              community_manager: cm,
+              rows: rows.map(({ proyecto_id, clave, valor }) => ({ proyecto_id, clave, valor })),
+            },
+          });
+          insertadas = res.insertadas;
+        } else {
+          insertadas = rows.length;
+          console.log("[feedback-semanal] insert cliente OK:", insertadas);
+        }
+      }
+
       toast.success(
         `Feedback enviado (${r.enviados} ${r.enviados === 1 ? "proyecto" : "proyectos"})` +
-          (r.insertadas > 0 ? ` · ${r.insertadas} entradas en memoria` : "")
+          (insertadas > 0
+            ? ` · ${insertadas} entradas en memoria`
+            : " · sin clasificaciones en la respuesta")
       );
       setFeedbacks({});
     } catch (e) {

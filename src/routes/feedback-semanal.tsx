@@ -57,7 +57,10 @@ function FeedbackSemanalPage() {
     setEnviando(true);
     try {
       const r = await guardar({ data: { community_manager: cm, semana, feedbacks: items } });
-      toast.success(`Feedback enviado (${r.enviados} ${r.enviados === 1 ? "proyecto" : "proyectos"})`);
+      toast.success(
+        `Feedback enviado (${r.enviados} ${r.enviados === 1 ? "proyecto" : "proyectos"})` +
+          (r.insertadas > 0 ? ` · ${r.insertadas} entradas en memoria` : "")
+      );
       setFeedbacks({});
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al enviar");

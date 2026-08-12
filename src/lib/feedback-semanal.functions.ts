@@ -55,7 +55,9 @@ export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
     if (!res.ok) throw new Error(`Webhook ${res.status}: ${text.slice(0, 200)}`);
 
     const parsed = parseRaw(text);
+    console.log("[feedback-semanal] parsed:", JSON.stringify(parsed, null, 2).slice(0, 2000));
     const resultados = findResultados(parsed);
+    console.log("[feedback-semanal] resultados encontrados:", resultados.length, Array.isArray(resultados) ? resultados.map((r) => ({ proyecto_id: r?.proyecto_id, claves: r?.clasificaciones?.length })) : null);
     const proyectoIds = new Set(data.feedbacks.map((f) => f.proyecto_id));
 
     const rows: Array<{
@@ -70,6 +72,7 @@ export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
       const pid = String(r?.proyecto_id ?? "");
       if (!proyectoIds.has(pid)) continue;
       const clasificaciones = Array.isArray(r?.clasificaciones) ? r.clasificaciones : [];
+      console.log(`[feedback-semanal] proyecto ${pid}: ${clasificaciones.length} clasificaciones`);
       for (const c of clasificaciones) {
         const clave = String(c?.clave ?? "").trim().toLowerCase();
         const valor = String(c?.valor ?? "").trim();
@@ -85,9 +88,11 @@ export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
     }
 
     let insertadas = 0;
+    console.log("[feedback-semanal] filas a insertar:", rows.length);
     if (rows.length > 0) {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { error } = await supabaseAdmin.from("memoria_cliente").insert(rows);
+      console.log("[feedback-semanal] resultado insercion:", error ? `ERROR ${error.message}` : `OK ${rows.length}`);
       if (error) throw new Error(`No se pudo guardar en memoria: ${error.message}`);
       insertadas = rows.length;
     }

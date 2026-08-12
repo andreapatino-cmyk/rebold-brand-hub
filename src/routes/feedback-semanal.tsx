@@ -36,6 +36,7 @@ type Proyecto = { id: string; nombre: string; pais: string | null; community_man
 function FeedbackSemanalPage() {
   const listar = useServerFn(listProyectos);
   const guardar = useServerFn(guardarFeedbackSemanal);
+  const insertarServidor = useServerFn(insertarMemoriaDesdeFeedback);
 
   const [cm, setCm] = useState<CM | "">("");
   const [semana, setSemana] = useState<string>(() => new Date().toISOString().slice(0, 10));

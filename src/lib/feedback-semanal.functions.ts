@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { parseRaw, findResultados } from "./feedback-semanal.server";
 
 const CMS = ["Alicia Prieto", "Alexandra Salas"] as const;
 
@@ -52,5 +53,44 @@ export const guardarFeedbackSemanal = createServerFn({ method: "POST" })
     });
     const text = await res.text();
     if (!res.ok) throw new Error(`Webhook ${res.status}: ${text.slice(0, 200)}`);
-    return { ok: true, enviados: data.feedbacks.length, raw: text };
+
+    const parsed = parseRaw(text);
+    const resultados = findResultados(parsed);
+    const proyectoIds = new Set(data.feedbacks.map((f) => f.proyecto_id));
+
+    const rows: Array<{
+      proyecto_id: string;
+      clave: string;
+      valor: string;
+      fuente: string;
+      community_manager: string;
+    }> = [];
+
+    for (const r of resultados) {
+      const pid = String(r?.proyecto_id ?? "");
+      if (!proyectoIds.has(pid)) continue;
+      const clasificaciones = Array.isArray(r?.clasificaciones) ? r.clasificaciones : [];
+      for (const c of clasificaciones) {
+        const clave = String(c?.clave ?? "").trim().toLowerCase();
+        const valor = String(c?.valor ?? "").trim();
+        if (!clave || !valor) continue;
+        rows.push({
+          proyecto_id: pid,
+          clave,
+          valor,
+          fuente: "feedback-semanal",
+          community_manager: data.community_manager,
+        });
+      }
+    }
+
+    let insertadas = 0;
+    if (rows.length > 0) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await supabaseAdmin.from("memoria_cliente").insert(rows);
+      if (error) throw new Error(`No se pudo guardar en memoria: ${error.message}`);
+      insertadas = rows.length;
+    }
+
+    return { ok: true, enviados: data.feedbacks.length, insertadas, raw: text };
   });

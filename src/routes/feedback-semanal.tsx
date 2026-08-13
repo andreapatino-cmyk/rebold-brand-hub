@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Send, MessageSquare, Globe } from "lucide-react";
 import { toast } from "sonner";
@@ -10,6 +10,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth";
+import { useNavigate } from "@tanstack/react-router";
 import { buildMemoriaRows } from "@/lib/feedback-semanal.parse";
 import {
   listProyectos,
@@ -34,6 +36,13 @@ type CM = (typeof CMS)[number];
 type Proyecto = { id: string; nombre: string; pais: string | null; community_manager: string | null };
 
 function FeedbackSemanalPage() {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!authLoading && !user) navigate({ to: "/login", replace: true });
+  }, [user, authLoading, navigate]);
+
   const listar = useServerFn(listProyectos);
   const guardar = useServerFn(guardarFeedbackSemanal);
   const insertarServidor = useServerFn(insertarMemoriaDesdeFeedback);
@@ -45,6 +54,7 @@ function FeedbackSemanalPage() {
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: ["feedback-semanal-proyectos"],
+    enabled: !!user,
     queryFn: async () => {
       const r = await listar();
       return r.proyectos as Proyecto[];
@@ -106,6 +116,14 @@ function FeedbackSemanalPage() {
   };
 
   const conFeedback = Object.values(feedbacks).filter((v) => v.trim().length > 0).length;
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-dvh flex items-center justify-center bg-background">
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh bg-background">

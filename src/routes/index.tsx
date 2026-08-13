@@ -4,6 +4,18 @@ import { useAuth } from "@/lib/auth";
 import { RLogo } from "@/components/RLogo";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Rebold — Marketing OS para agencias" },
+      { name: "description", content: "Plataforma para gestionar parrillas, evaluaciones, piezas y email marketing." },
+      { property: "og:title", content: "Rebold — Marketing OS para agencias" },
+      { name: "twitter:title", content: "Rebold — Marketing OS para agencias" },
+      { property: "og:description", content: "Plataforma para gestionar parrillas, evaluaciones, piezas y email marketing." },
+      { name: "twitter:description", content: "Plataforma para gestionar parrillas, evaluaciones, piezas y email marketing." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: Index,
 });
 

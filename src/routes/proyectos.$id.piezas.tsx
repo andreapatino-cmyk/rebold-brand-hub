@@ -10,6 +10,18 @@ import { toast } from "sonner";
 import { evaluarPiezaProxy } from "@/lib/evaluar-pieza.functions";
 
 export const Route = createFileRoute("/proyectos/$id/piezas")({
+  head: () => ({
+    meta: [
+      { title: "Piezas creativas — Rebold" },
+      { name: "description", content: "Sube imágenes y videos, evalúalos con IA y gestiona tus piezas creativas." },
+      { property: "og:title", content: "Piezas creativas — Rebold" },
+      { name: "twitter:title", content: "Piezas creativas — Rebold" },
+      { property: "og:description", content: "Sube imágenes y videos, evalúalos con IA y gestiona tus piezas creativas." },
+      { name: "twitter:description", content: "Sube imágenes y videos, evalúalos con IA y gestiona tus piezas creativas." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: PiezasPage,
 });
 

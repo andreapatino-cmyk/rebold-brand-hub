@@ -16,6 +16,18 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/proyectos/$id/memoria")({
+  head: () => ({
+    meta: [
+      { title: "Memoria del cliente — Rebold" },
+      { name: "description", content: "Guarda preferencias, vetos y aprendizajes del cliente para cada proyecto." },
+      { property: "og:title", content: "Memoria del cliente — Rebold" },
+      { name: "twitter:title", content: "Memoria del cliente — Rebold" },
+      { property: "og:description", content: "Guarda preferencias, vetos y aprendizajes del cliente para cada proyecto." },
+      { name: "twitter:description", content: "Guarda preferencias, vetos y aprendizajes del cliente para cada proyecto." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: MemoriaPage,
 });
 

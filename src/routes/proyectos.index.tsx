@@ -134,6 +134,7 @@ function ProyectosPage() {
   const [pais, setPais] = useState("");
   const [selRedes, setSelRedes] = useState<string[]>(["Instagram"]);
   const [pilares, setPilares] = useState<string[]>([]);
+  const [klaviyo, setKlaviyo] = useState("");
   const [saving, setSaving] = useState(false);
 
   const toggle = (r: string) =>
@@ -150,12 +151,13 @@ function ProyectosPage() {
       pais: pais.trim() || null,
       redes: selRedes,
       pilares,
-    });
+      klaviyo_api_key: klaviyo.trim() || null,
+    } as any);
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success("Proyecto creado");
     setOpen(false);
-    setNombre(""); setPais(""); setSelRedes(["Instagram"]); setPilares([]);
+    setNombre(""); setPais(""); setSelRedes(["Instagram"]); setPilares([]); setKlaviyo("");
     qc.invalidateQueries({ queryKey: ["proyectos"] });
   };
 
@@ -278,6 +280,19 @@ function ProyectosPage() {
                   <div className="space-y-2">
                     <Label>Pilares de contenido <span className="text-muted-foreground font-normal">(opcional)</span></Label>
                     <PilaresInput value={pilares} onChange={setPilares} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Klaviyo API Key <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                    <Input
+                      type="password"
+                      autoComplete="off"
+                      value={klaviyo}
+                      onChange={(e) => setKlaviyo(e.target.value)}
+                      placeholder="pk_..."
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Necesaria para traer flujos y métricas reales de Klaviyo en el módulo de Email.
+                    </p>
                   </div>
                 </div>
                 <DialogFooter>

@@ -9,6 +9,18 @@ import { RLogo } from "@/components/RLogo";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
+  head: () => ({
+    meta: [
+      { title: "Inicia sesión — Rebold" },
+      { name: "description", content: "Accede a Rebold para gestionar tus proyectos y parrillas de marketing." },
+      { property: "og:title", content: "Inicia sesión — Rebold" },
+      { name: "twitter:title", content: "Inicia sesión — Rebold" },
+      { property: "og:description", content: "Accede a Rebold para gestionar tus proyectos y parrillas de marketing." },
+      { name: "twitter:description", content: "Accede a Rebold para gestionar tus proyectos y parrillas de marketing." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: LoginPage,
 });
 

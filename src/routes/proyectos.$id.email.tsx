@@ -24,6 +24,18 @@ import { useServerFn } from "@tanstack/react-start";
 import { callN8nWebhook } from "@/lib/n8n-webhook.functions";
 
 export const Route = createFileRoute("/proyectos/$id/email")({
+  head: () => ({
+    meta: [
+      { title: "Email Marketing — Rebold" },
+      { name: "description", content: "Diseña flujos, genera copys y consulta métricas de email marketing." },
+      { property: "og:title", content: "Email Marketing — Rebold" },
+      { name: "twitter:title", content: "Email Marketing — Rebold" },
+      { property: "og:description", content: "Diseña flujos, genera copys y consulta métricas de email marketing." },
+      { name: "twitter:description", content: "Diseña flujos, genera copys y consulta métricas de email marketing." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: EmailPage,
 });
 

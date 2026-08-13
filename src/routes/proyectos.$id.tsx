@@ -14,6 +14,18 @@ export const Route = createFileRoute("/proyectos/$id")({
       throw redirect({ to: "/proyectos/$id/parrilla", params: { id: params.id }, replace: true });
     }
   },
+  head: () => ({
+    meta: [
+      { title: "Proyecto — Rebold" },
+      { name: "description", content: "Visualiza la parrilla, piezas, email y memoria del proyecto." },
+      { property: "og:title", content: "Proyecto — Rebold" },
+      { name: "twitter:title", content: "Proyecto — Rebold" },
+      { property: "og:description", content: "Visualiza la parrilla, piezas, email y memoria del proyecto." },
+      { name: "twitter:description", content: "Visualiza la parrilla, piezas, email y memoria del proyecto." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: ProyectoLayout,
 });
 

@@ -9,6 +9,18 @@ const searchSchema = z.object({ evalId: z.string().optional() });
 
 export const Route = createFileRoute("/proyectos/$id/evaluacion")({
   validateSearch: searchSchema,
+  head: () => ({
+    meta: [
+      { title: "Evaluación — Rebold" },
+      { name: "description", content: "Revisa la evaluación de parrilla con puntuaciones y criterios." },
+      { property: "og:title", content: "Evaluación — Rebold" },
+      { name: "twitter:title", content: "Evaluación — Rebold" },
+      { property: "og:description", content: "Revisa la evaluación de parrilla con puntuaciones y criterios." },
+      { name: "twitter:description", content: "Revisa la evaluación de parrilla con puntuaciones y criterios." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: EvaluacionPage,
 });
 

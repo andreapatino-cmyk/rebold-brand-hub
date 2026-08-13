@@ -26,6 +26,18 @@ import { TeamDialog } from "@/components/TeamDialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/proyectos/")({
+  head: () => ({
+    meta: [
+      { title: "Proyectos — Rebold" },
+      { name: "description", content: "Administra los proyectos de tu agencia, equipos y marcas." },
+      { property: "og:title", content: "Proyectos — Rebold" },
+      { name: "twitter:title", content: "Proyectos — Rebold" },
+      { property: "og:description", content: "Administra los proyectos de tu agencia, equipos y marcas." },
+      { name: "twitter:description", content: "Administra los proyectos de tu agencia, equipos y marcas." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: ProyectosPage,
 });
 

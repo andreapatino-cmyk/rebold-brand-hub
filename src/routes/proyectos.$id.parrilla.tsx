@@ -53,6 +53,18 @@ function parseFecha(raw: any, year: number, month: number): string {
 }
 
 export const Route = createFileRoute("/proyectos/$id/parrilla")({
+  head: () => ({
+    meta: [
+      { title: "Parrilla de contenido — Rebold" },
+      { name: "description", content: "Planifica, importa y evalúa la parrilla de redes sociales del proyecto." },
+      { property: "og:title", content: "Parrilla de contenido — Rebold" },
+      { name: "twitter:title", content: "Parrilla de contenido — Rebold" },
+      { property: "og:description", content: "Planifica, importa y evalúa la parrilla de redes sociales del proyecto." },
+      { name: "twitter:description", content: "Planifica, importa y evalúa la parrilla de redes sociales del proyecto." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: ParrillaPage,
 });
 

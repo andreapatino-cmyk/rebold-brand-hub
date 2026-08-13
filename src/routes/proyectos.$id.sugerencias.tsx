@@ -10,6 +10,18 @@ const searchSchema = z.object({ evalId: z.string().optional() });
 
 export const Route = createFileRoute("/proyectos/$id/sugerencias")({
   validateSearch: searchSchema,
+  head: () => ({
+    meta: [
+      { title: "Sugerencias — Rebold" },
+      { name: "description", content: "Descubre recomendaciones accionables para mejorar la parrilla." },
+      { property: "og:title", content: "Sugerencias — Rebold" },
+      { name: "twitter:title", content: "Sugerencias — Rebold" },
+      { property: "og:description", content: "Descubre recomendaciones accionables para mejorar la parrilla." },
+      { name: "twitter:description", content: "Descubre recomendaciones accionables para mejorar la parrilla." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: SugerenciasPage,
 });
 

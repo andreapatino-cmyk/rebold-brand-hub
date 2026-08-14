@@ -57,6 +57,7 @@ function ProyectoLayout() {
     { to: "/proyectos/$id/piezas" as const, label: "Piezas", icon: LayoutGrid, key: "piezas" },
     { to: "/proyectos/$id/email" as const, label: "Email", icon: Mail, key: "email" },
     { to: "/proyectos/$id/memoria" as const, label: "Memoria", icon: Brain, key: "memoria" },
+    { to: "/proyectos/$id/config" as const, label: "Integraciones", icon: Settings, key: "config" },
   ];
 
   const isActive = (key: string) => {

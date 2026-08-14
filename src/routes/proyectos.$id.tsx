@@ -1,7 +1,7 @@
 import { createFileRoute, Link, Outlet, redirect, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, LayoutGrid, Globe, Brain, Mail } from "lucide-react";
+import { ArrowLeft, Calendar, LayoutGrid, Globe, Brain, Mail, Settings } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { AppShell } from "@/components/AppShell";
@@ -57,6 +57,7 @@ function ProyectoLayout() {
     { to: "/proyectos/$id/piezas" as const, label: "Piezas", icon: LayoutGrid, key: "piezas" },
     { to: "/proyectos/$id/email" as const, label: "Email", icon: Mail, key: "email" },
     { to: "/proyectos/$id/memoria" as const, label: "Memoria", icon: Brain, key: "memoria" },
+    { to: "/proyectos/$id/config" as const, label: "Integraciones", icon: Settings, key: "config" },
   ];
 
   const isActive = (key: string) => {

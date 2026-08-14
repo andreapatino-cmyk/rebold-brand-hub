@@ -20,6 +20,7 @@ import { Route as ProyectosIdParrillaRouteImport } from './routes/proyectos.$id.
 import { Route as ProyectosIdMemoriaRouteImport } from './routes/proyectos.$id.memoria'
 import { Route as ProyectosIdEvaluacionRouteImport } from './routes/proyectos.$id.evaluacion'
 import { Route as ProyectosIdEmailRouteImport } from './routes/proyectos.$id.email'
+import { Route as ProyectosIdConfigRouteImport } from './routes/proyectos.$id.config'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -76,6 +77,11 @@ const ProyectosIdEmailRoute = ProyectosIdEmailRouteImport.update({
   path: '/email',
   getParentRoute: () => ProyectosIdRoute,
 } as any)
+const ProyectosIdConfigRoute = ProyectosIdConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
+  getParentRoute: () => ProyectosIdRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -83,6 +89,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
   '/proyectos/': typeof ProyectosIndexRoute
+  '/proyectos/$id/config': typeof ProyectosIdConfigRoute
   '/proyectos/$id/email': typeof ProyectosIdEmailRoute
   '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
   '/proyectos/$id/memoria': typeof ProyectosIdMemoriaRoute
@@ -96,6 +103,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
   '/proyectos': typeof ProyectosIndexRoute
+  '/proyectos/$id/config': typeof ProyectosIdConfigRoute
   '/proyectos/$id/email': typeof ProyectosIdEmailRoute
   '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
   '/proyectos/$id/memoria': typeof ProyectosIdMemoriaRoute
@@ -110,6 +118,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/proyectos/$id': typeof ProyectosIdRouteWithChildren
   '/proyectos/': typeof ProyectosIndexRoute
+  '/proyectos/$id/config': typeof ProyectosIdConfigRoute
   '/proyectos/$id/email': typeof ProyectosIdEmailRoute
   '/proyectos/$id/evaluacion': typeof ProyectosIdEvaluacionRoute
   '/proyectos/$id/memoria': typeof ProyectosIdMemoriaRoute
@@ -125,6 +134,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/proyectos/$id'
     | '/proyectos/'
+    | '/proyectos/$id/config'
     | '/proyectos/$id/email'
     | '/proyectos/$id/evaluacion'
     | '/proyectos/$id/memoria'
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/proyectos/$id'
     | '/proyectos'
+    | '/proyectos/$id/config'
     | '/proyectos/$id/email'
     | '/proyectos/$id/evaluacion'
     | '/proyectos/$id/memoria'
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/proyectos/$id'
     | '/proyectos/'
+    | '/proyectos/$id/config'
     | '/proyectos/$id/email'
     | '/proyectos/$id/evaluacion'
     | '/proyectos/$id/memoria'
@@ -246,10 +258,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProyectosIdEmailRouteImport
       parentRoute: typeof ProyectosIdRoute
     }
+    '/proyectos/$id/config': {
+      id: '/proyectos/$id/config'
+      path: '/config'
+      fullPath: '/proyectos/$id/config'
+      preLoaderRoute: typeof ProyectosIdConfigRouteImport
+      parentRoute: typeof ProyectosIdRoute
+    }
   }
 }
 
 interface ProyectosIdRouteChildren {
+  ProyectosIdConfigRoute: typeof ProyectosIdConfigRoute
   ProyectosIdEmailRoute: typeof ProyectosIdEmailRoute
   ProyectosIdEvaluacionRoute: typeof ProyectosIdEvaluacionRoute
   ProyectosIdMemoriaRoute: typeof ProyectosIdMemoriaRoute
@@ -259,6 +279,7 @@ interface ProyectosIdRouteChildren {
 }
 
 const ProyectosIdRouteChildren: ProyectosIdRouteChildren = {
+  ProyectosIdConfigRoute: ProyectosIdConfigRoute,
   ProyectosIdEmailRoute: ProyectosIdEmailRoute,
   ProyectosIdEvaluacionRoute: ProyectosIdEvaluacionRoute,
   ProyectosIdMemoriaRoute: ProyectosIdMemoriaRoute,

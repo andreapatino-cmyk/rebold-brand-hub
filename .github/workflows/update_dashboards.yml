@@ -2,7 +2,6 @@ name: Rebold — Actualizar Dashboards Email
 
 on:
   schedule:
-    # Cada lunes a las 8am Colombia (UTC-5 = 13:00 UTC)
     - cron: '0 13 * * 1'
   workflow_dispatch:
 
@@ -32,10 +31,8 @@ jobs:
           BROOKLYN_METRIC_ID: ${{ secrets.BROOKLYN_METRIC_ID }}
           BEG_API_KEY: ${{ secrets.BEG_API_KEY }}
           BEG_METRIC_ID: ${{ secrets.BEG_METRIC_ID }}
-          OUTPUT_DIR: dashboards
-        run: |
-          cd dashboards
-          python generate_dashboards.py
+          OUTPUT_DIR: dashboards/output
+        run: python dashboards/generate_dashboards.py
 
       - name: Instalar Netlify CLI
         run: npm install -g netlify-cli
@@ -44,5 +41,4 @@ jobs:
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        run: |
-          netlify deploy --prod --dir=dashboards/dashboards --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN
+        run: netlify deploy --prod --dir=dashboards/output --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN

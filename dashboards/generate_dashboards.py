@@ -192,6 +192,13 @@ def fetch_brand_data(brand_config):
 
     campaigns_raw = client.get_campaigns()
     print(f"  Campanas: {len(campaigns_raw)}")
+    if campaigns_raw:
+        sample = campaigns_raw[0]
+        print(f"  Sample ID: {sample.get('id','')}")
+        print(f"  Sample name: {sample.get('attributes',{}).get('name','')}")
+        print(f"  Sample status: {sample.get('attributes',{}).get('status','')}")
+        statuses = set(c.get('attributes',{}).get('status','') for c in campaigns_raw[:10])
+        print(f"  Statuses found: {statuses}")
 
     campaign_report = {}
     if conv_metric_id and campaigns_raw:
@@ -206,6 +213,8 @@ def fetch_brand_data(brand_config):
                 for d in data_item:
                     results += d.get("attributes", {}).get("results", [])
             print(f"  Campaign report results: {len(results)}")
+            if results:
+                print(f"  Sample report campaign_id: {results[0].get('groupings',{}).get('campaign_id','')}")
             for result in results:
                 if isinstance(result, dict):
                     groupings = result.get("groupings", {})
@@ -215,9 +224,9 @@ def fetch_brand_data(brand_config):
                         if cid not in campaign_report:
                             campaign_report[cid] = stats
                         else:
-                            # Acumular revenue si hay multiples mensajes
                             for k in ["conversion_value", "recipients"]:
                                 campaign_report[cid][k] = (campaign_report[cid].get(k) or 0) + (stats.get(k) or 0)
+            print(f"  Campaign report mapped: {len(campaign_report)} IDs")
 
     flows_raw = client.get_flows()
     print(f"  Flujos: {len(flows_raw)}")
@@ -560,7 +569,9 @@ function fCamps(){
 }
 function render(){
   var camps=fCamps();
-  var sent=camps.filter(function(c){return['sent','sending'].indexOf(c.status.toLowerCase())>-1});
+  var sent=camps.filter(function(c){return c.conv_value>0||['sent','sending','Sent','Sending'].indexOf(c.status)>-1});
+  if(sent.length===0)sent=camps.filter(function(c){return c.open_rate>0||c.recipients>0});
+  if(sent.length===0)sent=camps;
   var campRev=sent.reduce(function(s,c){return s+c.conv_value},0);
   var flowRev=ALL_FLOWS.reduce(function(s,f){return s+f.conv_value},0);
   var totalRev=campRev+flowRev;

@@ -93,24 +93,30 @@ class KlaviyoClient:
             "Content-Type": "application/json",
         }
 
-    def get(self, endpoint, params=None):
-        url = f"{BASE_URL}/{endpoint}"
-        try:
-            r = requests.get(url, headers=self.headers, params=params, timeout=30)
-            r.raise_for_status()
-            return r.json()
-        except Exception as e:
-            print(f"  Error GET {endpoint}: {e}")
-            return {}
+
 
     def post(self, endpoint, body):
         url = f"{BASE_URL}/{endpoint}"
         try:
             r = requests.post(url, headers=self.headers, json=body, timeout=30)
-            r.raise_for_status()
+            if not r.ok:
+                print(f"  Error POST {endpoint}: {r.status_code} {r.text[:500]}")
+                return {}
             return r.json()
         except Exception as e:
             print(f"  Error POST {endpoint}: {e}")
+            return {}
+
+    def get(self, endpoint, params=None):
+        url = f"{BASE_URL}/{endpoint}"
+        try:
+            r = requests.get(url, headers=self.headers, params=params, timeout=30)
+            if not r.ok:
+                print(f"  Error GET {endpoint}: {r.status_code} {r.text[:300]}")
+                return {}
+            return r.json()
+        except Exception as e:
+            print(f"  Error GET {endpoint}: {e}")
             return {}
 
     def get_conversion_metric_id(self):

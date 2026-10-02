@@ -31,8 +31,10 @@ jobs:
           BROOKLYN_METRIC_ID: ${{ secrets.BROOKLYN_METRIC_ID }}
           BEG_API_KEY: ${{ secrets.BEG_API_KEY }}
           BEG_METRIC_ID: ${{ secrets.BEG_METRIC_ID }}
-          OUTPUT_DIR: dashboards/output
-        run: python dashboards/generate_dashboards.py
+          OUTPUT_DIR: output
+        run: |
+          cd dashboards
+          python generate_dashboards.py
 
       - name: Instalar Netlify CLI
         run: npm install -g netlify-cli

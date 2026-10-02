@@ -197,14 +197,20 @@ def fetch_brand_data(brand_config):
     if conv_metric_id and campaigns_raw:
         report_data = client.get_campaign_report(conv_metric_id, start_str, end_str)
         if isinstance(report_data, dict):
-            items = report_data.get("data", [])
-            print(f"  Campaign report items: {len(items)}")
-            if items:
-                print(f"  Item type: {type(items[0])}")
-                print(f"  Full item: {str(items[0])[:500]}")
-            for item in items:
+            items = report_data.get("data", {})
+            print(f"  Campaign report type: {type(items)}")
+            print(f"  Campaign report sample: {str(items)[:500]}")
+            # items puede ser dict o list
+            if isinstance(items, dict):
+                items_list = list(items.values())
+            elif isinstance(items, list):
+                items_list = items
+            else:
+                items_list = []
+            print(f"  Campaign report items: {len(items_list)}")
+            for item in items_list:
                 if isinstance(item, dict):
-                    attrs = item.get("attributes", {})
+                    attrs = item.get("attributes", item)
                     cid = attrs.get("campaign_id", "")
                     if cid:
                         if cid not in campaign_report:

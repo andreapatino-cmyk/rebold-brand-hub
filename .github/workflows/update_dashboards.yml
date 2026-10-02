@@ -35,13 +35,12 @@ jobs:
         run: |
           cd dashboards
           python generate_dashboards.py
-          cp netlify.toml output/
 
       - name: Instalar Netlify CLI
         run: npm install -g netlify-cli
 
       - name: Desplegar en Netlify
-        run: netlify deploy --prod --dir=dashboards/output --skip-functions-cache
+        run: netlify deploy --prod --dir=dashboards/output --no-build
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}

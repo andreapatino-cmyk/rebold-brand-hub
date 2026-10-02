@@ -145,7 +145,7 @@ class KlaviyoClient:
                     "statistics": ["recipients", "opens_unique", "clicks_unique",
                                    "open_rate", "click_rate", "conversion_rate",
                                    "conversion_uniques", "unsubscribes", "unsubscribe_rate"],
-                    "group_by": ["campaign_id"],
+                    "group_by": ["campaign_id", "campaign_message_id"],
                 },
             }
         }
@@ -165,7 +165,7 @@ class KlaviyoClient:
                     "filter": 'equals(send_channel,"email")',
                     "statistics": ["recipients", "opens_unique", "clicks_unique",
                                    "open_rate", "click_rate", "conversion_rate"],
-                    "group_by": ["flow_id"],
+                    "group_by": ["flow_id", "flow_message_id"],
                 },
             }
         }

@@ -141,7 +141,7 @@ class KlaviyoClient:
                 "attributes": {
                     "timeframe": {"start": start_date, "end": end_date},
                     "conversion_metric_id": conv_metric_id,
-                    "filter": 'equals(messages.channel,"email")',
+                    "filter": 'equals(send_channel,"email")',
                     "statistics": ["recipients", "opens_unique", "clicks_unique",
                                    "open_rate", "click_rate", "conversion_rate",
                                    "conversion_uniques", "unsubscribes", "unsubscribe_rate"],
@@ -194,10 +194,14 @@ def fetch_brand_data(brand_config):
     campaign_report = {}
     if conv_metric_id and campaigns_raw:
         report_data = client.get_campaign_report(conv_metric_id, start_str, end_str)
-        for item in report_data.get("data", []):
-            attrs = item.get("attributes", {})
-            cid = attrs.get("campaign_id", "")
-            campaign_report[cid] = attrs
+        if isinstance(report_data, dict):
+            for item in report_data.get("data", []):
+                if isinstance(item, dict):
+                    attrs = item.get("attributes", {})
+                    cid = attrs.get("campaign_id", "")
+                    if cid:
+                        if cid not in campaign_report:
+                            campaign_report[cid] = attrs
 
     flows_raw = client.get_flows()
     print(f"  Flujos: {len(flows_raw)}")
@@ -205,10 +209,13 @@ def fetch_brand_data(brand_config):
     flow_report = {}
     if conv_metric_id and flows_raw:
         report_data = client.get_flow_report(conv_metric_id, start_str, end_str)
-        for item in report_data.get("data", []):
-            attrs = item.get("attributes", {})
-            fid = attrs.get("flow_id", "")
-            flow_report[fid] = attrs
+        if isinstance(report_data, dict):
+            for item in report_data.get("data", []):
+                if isinstance(item, dict):
+                    attrs = item.get("attributes", {})
+                    fid = attrs.get("flow_id", "")
+                    if fid:
+                        flow_report[fid] = attrs
 
     campaigns = []
     for c in campaigns_raw[:20]:

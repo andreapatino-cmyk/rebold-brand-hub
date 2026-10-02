@@ -200,8 +200,8 @@ def fetch_brand_data(brand_config):
             items = report_data.get("data", [])
             print(f"  Campaign report items: {len(items)}")
             if items:
-                print(f"  Sample item keys: {items[0].keys() if items else 'none'}")
-                print(f"  Sample attrs: {str(items[0].get('attributes', {}))[:300]}")
+                print(f"  Item type: {type(items[0])}")
+                print(f"  Full item: {str(items[0])[:500]}")
             for item in items:
                 if isinstance(item, dict):
                     attrs = item.get("attributes", {})
@@ -787,7 +787,9 @@ def main():
                 f.write(html)
             print(f"OK: {brand_config['name']} > {output_path}")
         except Exception as e:
+            import traceback
             print(f"ERROR {brand_config['name']}: {e}")
+            print(traceback.format_exc())
 
     print("Listo.")
 

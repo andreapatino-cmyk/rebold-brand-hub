@@ -144,7 +144,8 @@ class KlaviyoClient:
                     "filter": 'equals(send_channel,"email")',
                     "statistics": ["recipients", "opens_unique", "clicks_unique",
                                    "open_rate", "click_rate", "conversion_rate",
-                                   "conversion_uniques", "unsubscribes", "unsubscribe_rate"],
+                                   "conversion_uniques", "conversion_value",
+                                   "revenue_per_recipient", "unsubscribes", "unsubscribe_rate"],
                     "group_by": ["campaign_id", "campaign_message_id"],
                 },
             }
@@ -164,7 +165,8 @@ class KlaviyoClient:
                     "conversion_metric_id": conv_metric_id,
                     "filter": 'equals(send_channel,"email")',
                     "statistics": ["recipients", "opens_unique", "clicks_unique",
-                                   "open_rate", "click_rate", "conversion_rate"],
+                                   "open_rate", "click_rate", "conversion_rate",
+                                   "conversion_value", "revenue_per_recipient"],
                     "group_by": ["flow_id", "flow_message_id"],
                 },
             }
@@ -195,7 +197,12 @@ def fetch_brand_data(brand_config):
     if conv_metric_id and campaigns_raw:
         report_data = client.get_campaign_report(conv_metric_id, start_str, end_str)
         if isinstance(report_data, dict):
-            for item in report_data.get("data", []):
+            items = report_data.get("data", [])
+            print(f"  Campaign report items: {len(items)}")
+            if items:
+                print(f"  Sample item keys: {items[0].keys() if items else 'none'}")
+                print(f"  Sample attrs: {str(items[0].get('attributes', {}))[:300]}")
+            for item in items:
                 if isinstance(item, dict):
                     attrs = item.get("attributes", {})
                     cid = attrs.get("campaign_id", "")
@@ -223,7 +230,8 @@ def fetch_brand_data(brand_config):
         send_time = attrs.get("send_time", "") or attrs.get("scheduled_at", "")
         cid = c.get("id", "")
         report = campaign_report.get(cid, {})
-        stats = report.get("statistics", {})
+        # Las stats pueden estar en report["statistics"] o directamente en report
+        stats = report.get("statistics", report)
         date_str = ""
         if send_time:
             try:
@@ -249,7 +257,7 @@ def fetch_brand_data(brand_config):
         attrs = f.get("attributes", {})
         fid = f.get("id", "")
         report = flow_report.get(fid, {})
-        stats = report.get("statistics", {})
+        stats = report.get("statistics", report)
         flows.append({
             "id": fid,
             "name": attrs.get("name", "Sin nombre"),

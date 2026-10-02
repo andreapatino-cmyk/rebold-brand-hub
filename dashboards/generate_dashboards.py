@@ -197,24 +197,27 @@ def fetch_brand_data(brand_config):
     if conv_metric_id and campaigns_raw:
         report_data = client.get_campaign_report(conv_metric_id, start_str, end_str)
         if isinstance(report_data, dict):
-            items = report_data.get("data", {})
-            print(f"  Campaign report type: {type(items)}")
-            print(f"  Campaign report sample: {str(items)[:500]}")
-            # items puede ser dict o list
-            if isinstance(items, dict):
-                items_list = list(items.values())
-            elif isinstance(items, list):
-                items_list = items
-            else:
-                items_list = []
-            print(f"  Campaign report items: {len(items_list)}")
-            for item in items_list:
-                if isinstance(item, dict):
-                    attrs = item.get("attributes", item)
-                    cid = attrs.get("campaign_id", "")
+            # Klaviyo retorna data como dict con attributes.results
+            data_item = report_data.get("data", {})
+            results = []
+            if isinstance(data_item, dict):
+                results = data_item.get("attributes", {}).get("results", [])
+            elif isinstance(data_item, list):
+                for d in data_item:
+                    results += d.get("attributes", {}).get("results", [])
+            print(f"  Campaign report results: {len(results)}")
+            for result in results:
+                if isinstance(result, dict):
+                    groupings = result.get("groupings", {})
+                    stats = result.get("statistics", {})
+                    cid = groupings.get("campaign_id", "")
                     if cid:
                         if cid not in campaign_report:
-                            campaign_report[cid] = attrs
+                            campaign_report[cid] = stats
+                        else:
+                            # Acumular revenue si hay multiples mensajes
+                            for k in ["conversion_value", "recipients"]:
+                                campaign_report[cid][k] = (campaign_report[cid].get(k) or 0) + (stats.get(k) or 0)
 
     flows_raw = client.get_flows()
     print(f"  Flujos: {len(flows_raw)}")
@@ -223,12 +226,24 @@ def fetch_brand_data(brand_config):
     if conv_metric_id and flows_raw:
         report_data = client.get_flow_report(conv_metric_id, start_str, end_str)
         if isinstance(report_data, dict):
-            for item in report_data.get("data", []):
-                if isinstance(item, dict):
-                    attrs = item.get("attributes", {})
-                    fid = attrs.get("flow_id", "")
+            data_item = report_data.get("data", {})
+            results = []
+            if isinstance(data_item, dict):
+                results = data_item.get("attributes", {}).get("results", [])
+            elif isinstance(data_item, list):
+                for d in data_item:
+                    results += d.get("attributes", {}).get("results", [])
+            for result in results:
+                if isinstance(result, dict):
+                    groupings = result.get("groupings", {})
+                    stats = result.get("statistics", {})
+                    fid = groupings.get("flow_id", "")
                     if fid:
-                        flow_report[fid] = attrs
+                        if fid not in flow_report:
+                            flow_report[fid] = stats
+                        else:
+                            for k in ["conversion_value", "recipients"]:
+                                flow_report[fid][k] = (flow_report[fid].get(k) or 0) + (stats.get(k) or 0)
 
     campaigns = []
     for c in campaigns_raw[:20]:
@@ -236,8 +251,7 @@ def fetch_brand_data(brand_config):
         send_time = attrs.get("send_time", "") or attrs.get("scheduled_at", "")
         cid = c.get("id", "")
         report = campaign_report.get(cid, {})
-        # Las stats pueden estar en report["statistics"] o directamente en report
-        stats = report.get("statistics", report)
+        stats = report
         date_str = ""
         if send_time:
             try:
@@ -263,7 +277,7 @@ def fetch_brand_data(brand_config):
         attrs = f.get("attributes", {})
         fid = f.get("id", "")
         report = flow_report.get(fid, {})
-        stats = report.get("statistics", report)
+        stats = report
         flows.append({
             "id": fid,
             "name": attrs.get("name", "Sin nombre"),

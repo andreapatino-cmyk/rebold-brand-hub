@@ -145,14 +145,14 @@ class KlaviyoClient:
                     "statistics": ["recipients", "opens_unique", "clicks_unique",
                                    "open_rate", "click_rate", "conversion_rate",
                                    "conversion_uniques", "unsubscribes", "unsubscribe_rate"],
-                    "group_by": ["campaign_id", "campaign_name"],
+                    "group_by": ["campaign_id"],
                 },
             }
         }
         return self.post("campaign-values-reports/", body)
 
     def get_flows(self):
-        data = self.get("flows/", {"sort": "-updated_at"})
+        data = self.get("flows/", {"sort": "-updated"})
         return data.get("data", [])
 
     def get_flow_report(self, conv_metric_id, start_date, end_date):
@@ -165,7 +165,7 @@ class KlaviyoClient:
                     "filter": 'equals(send_channel,"email")',
                     "statistics": ["recipients", "opens_unique", "clicks_unique",
                                    "open_rate", "click_rate", "conversion_rate"],
-                    "group_by": ["flow_id", "flow_name"],
+                    "group_by": ["flow_id"],
                 },
             }
         }

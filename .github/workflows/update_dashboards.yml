@@ -40,7 +40,7 @@ jobs:
         run: npm install -g netlify-cli
 
       - name: Desplegar en Netlify
+        run: netlify deploy --prod --dir=dashboards/output
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        run: netlify deploy --prod --dir=dashboards/output --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH_TOKEN

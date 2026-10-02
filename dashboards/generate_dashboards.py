@@ -38,7 +38,7 @@ BRANDS = {
         "color": "#3DA8F2",
         "color_dim": "rgba(61,168,242,0.12)",
         "api_key": os.environ.get("BROOKLYN_API_KEY", ""),
-        "conversion_metric_id": os.environ.get("BROOKLYN_METRIC_ID", ""),
+        "conversion_metric_id": os.environ.get("BROOKLYN_METRIC_ID", "VDmt66"),
         "output_file": "brooklyn_dashboard.html",
         "brand_key": "brooklyn",
     },
@@ -49,7 +49,7 @@ BRANDS = {
         "color": "#A78BFA",
         "color_dim": "rgba(167,139,250,0.12)",
         "api_key": os.environ.get("BEG_API_KEY", ""),
-        "conversion_metric_id": os.environ.get("BEG_METRIC_ID", ""),
+        "conversion_metric_id": os.environ.get("BEG_METRIC_ID", "SJAjCL"),
         "output_file": "beg_dashboard.html",
         "brand_key": "beg",
     },
@@ -135,7 +135,7 @@ class KlaviyoClient:
                 "attributes": {
                     "timeframe": {"start": start_date, "end": end_date},
                     "conversion_metric_id": conv_metric_id,
-                    "filter": 'equals(send_channel,"email")',
+                    "filter": 'equals(messages.channel,"email")',
                     "statistics": ["recipients", "opens_unique", "clicks_unique",
                                    "open_rate", "click_rate", "conversion_rate",
                                    "conversion_uniques", "unsubscribes", "unsubscribe_rate"],
@@ -146,7 +146,7 @@ class KlaviyoClient:
         return self.post("campaign-values-reports/", body)
 
     def get_flows(self):
-        data = self.get("flows/", {"filter": 'equals(status,"live")', "sort": "-updated_at"})
+        data = self.get("flows/", {"sort": "-updated_at"})
         return data.get("data", [])
 
     def get_flow_report(self, conv_metric_id, start_date, end_date):

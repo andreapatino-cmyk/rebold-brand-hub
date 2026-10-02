@@ -201,8 +201,10 @@ def fetch_brand_data(brand_config):
         print(f"  Statuses found: {statuses}")
 
     campaign_report = {}
+    campaign_report_raw = {}
     if conv_metric_id and campaigns_raw:
-        report_data = client.get_campaign_report(conv_metric_id, start_str, end_str)
+        campaign_report_raw = client.get_campaign_report(conv_metric_id, start_str, end_str)
+        report_data = campaign_report_raw
         if isinstance(report_data, dict):
             # Klaviyo retorna data como dict con attributes.results
             data_item = report_data.get("data", {})
@@ -254,25 +256,33 @@ def fetch_brand_data(brand_config):
                             for k in ["conversion_value", "recipients"]:
                                 flow_report[fid][k] = (flow_report[fid].get(k) or 0) + (stats.get(k) or 0)
 
+    # Construir lookup de campañas por ID
+    camps_by_id = {c.get("id", ""): c for c in campaigns_raw}
+
     campaigns = []
-    for c in campaigns_raw[:20]:
-        attrs = c.get("attributes", {})
+    # Usar los resultados del report como fuente principal (tienen métricas reales)
+    raw_results = []
+    if isinstance(campaign_report_raw.get("data"), dict):
+        raw_results = campaign_report_raw["data"].get("attributes", {}).get("results", [])
+    for result in raw_results:
+        groupings = result.get("groupings", {})
+        stats = result.get("statistics", {})
+        cid = groupings.get("campaign_id", "")
+        camp = camps_by_id.get(cid, {})
+        attrs = camp.get("attributes", {})
         send_time = attrs.get("send_time", "") or attrs.get("scheduled_at", "")
-        cid = c.get("id", "")
-        report = campaign_report.get(cid, {})
-        stats = report
         date_str = ""
         if send_time:
             try:
-                dt = datetime.fromisoformat(send_time.replace("Z", "+00:00"))
-                date_str = dt.strftime("%Y-%m-%d")
+                dt_obj = datetime.fromisoformat(send_time.replace("Z", "+00:00"))
+                date_str = dt_obj.strftime("%Y-%m-%d")
             except:
                 date_str = send_time[:10]
         campaigns.append({
             "id": cid,
-            "name": attrs.get("name", "Sin nombre"),
+            "name": attrs.get("name", groupings.get("campaign_message_id", cid)),
             "date": date_str,
-            "status": attrs.get("status", ""),
+            "status": attrs.get("status", "Sent"),
             "open_rate": float(stats.get("open_rate") or 0),
             "click_rate": float(stats.get("click_rate") or 0),
             "conv_rate": float(stats.get("conversion_rate") or 0),
@@ -280,6 +290,7 @@ def fetch_brand_data(brand_config):
             "rpr": float(stats.get("revenue_per_recipient") or 0),
             "recipients": int(stats.get("recipients") or 0),
         })
+    print(f"  Campanas con metricas: {len(campaigns)}")
 
     flows = []
     for f in flows_raw[:10]:
@@ -569,8 +580,7 @@ function fCamps(){
 }
 function render(){
   var camps=fCamps();
-  var sent=camps.filter(function(c){return c.conv_value>0||['sent','sending','Sent','Sending'].indexOf(c.status)>-1});
-  if(sent.length===0)sent=camps.filter(function(c){return c.open_rate>0||c.recipients>0});
+  var sent=camps.filter(function(c){return c.recipients>0||c.open_rate>0});
   if(sent.length===0)sent=camps;
   var campRev=sent.reduce(function(s,c){return s+c.conv_value},0);
   var flowRev=ALL_FLOWS.reduce(function(s,f){return s+f.conv_value},0);

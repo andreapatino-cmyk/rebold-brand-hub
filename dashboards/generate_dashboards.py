@@ -188,20 +188,21 @@ def generate_optimizations_groq(brand_name, category, campaigns, flows):
     if not groq_api_key:
         return "Configura GROQ_API_KEY para generar optimizaciones con IA."
 
-    sent = [c for c in campaigns if c.get("recipients", 0) > 0]
-    if not sent:
+    with_data = [c for c in campaigns if c.get("recipients", 0) > 0 or c.get("open_rate", 0) > 0]
+    use_camps = with_data if with_data else campaigns
+    if not use_camps:
         return "Sin datos suficientes para generar optimizaciones."
 
-    avg_open = sum(c["open_rate"] for c in sent) / len(sent)
-    avg_click = sum(c["click_rate"] for c in sent) / len(sent)
-    total_rev = sum(c["conv_value"] for c in sent) + sum(f["conv_value"] for f in flows)
-    best = sorted(sent, key=lambda x: x["conv_value"], reverse=True)[0] if sent else None
-    worst = sorted(sent, key=lambda x: x["conv_value"])[0] if sent else None
+    avg_open = sum(c["open_rate"] for c in use_camps) / len(use_camps)
+    avg_click = sum(c["click_rate"] for c in use_camps) / len(use_camps)
+    total_rev = sum(c["conv_value"] for c in use_camps) + sum(f["conv_value"] for f in flows)
+    best = sorted(use_camps, key=lambda x: x["conv_value"], reverse=True)[0]
+    worst = sorted(use_camps, key=lambda x: x["conv_value"])[0]
     zero_flows = [f for f in flows if f.get("recipients", 0) > 0 and f.get("conv_rate", 0) == 0]
 
     camps_txt = "\n".join([
         f"- {c['name']} | {c['date']} | Apertura: {c['open_rate']*100:.1f}% | Clics: {c['click_rate']*100:.2f}% | Revenue: ${c['conv_value']:.0f}"
-        for c in sent
+        for c in use_camps[:15]
     ])
     flows_txt = "\n".join([
         f"- {f['name']} | Conv: {f['conv_rate']*100:.1f}% | Revenue: ${f['conv_value']:.0f} | RPR: ${f['rpr']:.2f}"

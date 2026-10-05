@@ -122,7 +122,7 @@ class KlaviyoClient:
         """Obtiene campañas con sus message IDs via endpoint de mensajes"""
         # Usar revision mas reciente para este endpoint
         old_rev = self.headers["revision"]
-        self.headers["revision"] = "2025-04-15"
+        self.headers["revision"] = "2026-07-15"
         data = self.get("campaign-messages/", {
             "filter": 'equals(channel,"email")',
             "sort": "-updated_at",

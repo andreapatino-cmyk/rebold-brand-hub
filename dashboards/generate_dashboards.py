@@ -236,15 +236,18 @@ Genera un análisis de optimización EN ESPAÑOL con:
 
 Sé muy específico. Usa los datos reales. No seas genérico."""
 
+    openai_key = os.environ.get("OPENAI_API_KEY", "")
+    if not openai_key:
+        return "Configura OPENAI_API_KEY para generar optimizaciones."
     try:
         r = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
+            "https://api.openai.com/v1/chat/completions",
             headers={
-                "Authorization": f"Bearer {groq_api_key}",
+                "Authorization": f"Bearer {openai_key}",
                 "Content-Type": "application/json",
             },
             json={
-                "model": "meta-llama/llama-4-scout-17b-16e-instruct",
+                "model": "gpt-4o-mini",
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 1500,
                 "temperature": 0.7,
@@ -252,14 +255,13 @@ Sé muy específico. Usa los datos reales. No seas genérico."""
             timeout=60,
         )
         if r.ok:
-            result = r.json()
-            return result["choices"][0]["message"]["content"]
+            return r.json()["choices"][0]["message"]["content"]
         else:
-            print(f"  Groq error {r.status_code}: {r.text[:400]}")
-            return f"Error Groq {r.status_code}: {r.text[:200]}"
+            print(f"  OpenAI error {r.status_code}: {r.text[:400]}")
+            return f"Error OpenAI {r.status_code}: {r.text[:200]}"
     except Exception as e:
         import traceback
-        print(f"  Groq exception: {e}")
+        print(f"  OpenAI exception: {e}")
         print(traceback.format_exc())
         return f"Error: {e}"
 

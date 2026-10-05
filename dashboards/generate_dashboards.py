@@ -171,85 +171,115 @@ class KlaviyoClient:
 
 
 def generate_optimizations(brand_name, category, campaigns, flows):
-    openai_key = os.environ.get("OPENAI_API_KEY", "")
-    print(f"  OpenAI key: {bool(openai_key)} ({len(openai_key)} chars)")
-    if not openai_key:
-        return "Configura OPENAI_API_KEY para generar optimizaciones con IA."
-
     use_camps = [c for c in campaigns if c.get("open_rate", 0) > 0 or c.get("recipients", 0) > 0]
     if not use_camps:
         use_camps = campaigns
     if not use_camps:
-        return "Sin datos de campanas para analizar."
+        return "Sin datos de campanas para analizar en este periodo."
 
     avg_open = sum(c["open_rate"] for c in use_camps) / len(use_camps)
     avg_click = sum(c["click_rate"] for c in use_camps) / len(use_camps)
-    total_rev = sum(c["conv_value"] for c in use_camps) + sum(f["conv_value"] for f in flows)
-    best = sorted(use_camps, key=lambda x: x["conv_value"], reverse=True)[0]
-    worst = sorted(use_camps, key=lambda x: x["conv_value"])[0]
+    avg_conv = sum(c["conv_rate"] for c in use_camps) / len(use_camps)
+    total_camp_rev = sum(c["conv_value"] for c in use_camps)
+    total_flow_rev = sum(f["conv_value"] for f in flows)
+    total_rev = total_camp_rev + total_flow_rev
+    sorted_rev = sorted(use_camps, key=lambda x: x["conv_value"], reverse=True)
+    best = sorted_rev[0]
+    worst = sorted_rev[-1]
     zero_flows = [f for f in flows if f.get("recipients", 0) > 0 and f.get("conv_rate", 0) == 0]
+    top_flows = sorted(flows, key=lambda x: x["conv_value"], reverse=True)[:3]
+    date = datetime.utcnow().strftime("%d/%m/%Y")
 
-    camps_txt = "\n".join([
-        f"- {c['name']} | {c['date']} | Apertura: {c['open_rate']*100:.1f}% | Clics: {c['click_rate']*100:.2f}% | Revenue: ${c['conv_value']:.0f}"
-        for c in use_camps[:15]
-    ])
-    flows_txt = "\n".join([
-        f"- {f['name']} | Conv: {f['conv_rate']*100:.1f}% | Revenue: ${f['conv_value']:.0f} | RPR: ${f['rpr']:.2f}"
-        for f in flows[:8]
-    ])
+    lines = []
+    lines.append(f"ANALISIS DE EMAIL MARKETING — {brand_name.upper()}")
+    lines.append(f"Generado: {date} | Periodo: ultimos 90 dias")
+    lines.append("=" * 60)
 
-    prompt = f"""Eres un estratega experto en email marketing DTC para marcas en USA.
+    lines.append("\n1. DIAGNOSTICO RAPIDO")
+    lines.append(f"Revenue total email: ${total_rev:,.0f} (campanas ${total_camp_rev:,.0f} + flujos ${total_flow_rev:,.0f})")
+    lines.append(f"Apertura promedio: {avg_open*100:.1f}% {'(EXCEPCIONAL — 2-3x industria)' if avg_open > 0.6 else '(por debajo del objetivo >45%)' if avg_open < 0.45 else '(en rango industria)'}")
+    lines.append(f"Clics promedio: {avg_click*100:.2f}% {'(por debajo del objetivo 1.5-2.5%)' if avg_click < 0.015 else '(en rango objetivo)'}")
+    lines.append(f"Conversion promedio: {avg_conv*100:.3f}%")
+    lines.append(f"Mejor campana: \"{best['name']}\" → ${best['conv_value']:,.0f} revenue")
+    lines.append(f"Campana a revisar: \"{worst['name']}\" → ${worst['conv_value']:,.0f} revenue")
+    if zero_flows:
+        lines.append(f"ALERTA: {len(zero_flows)} flujo(s) con 0% conversion: {', '.join(f['name'] for f in zero_flows)}")
 
-MARCA: {brand_name} ({category})
-PERIODO: Ultimos 90 dias
-COMMUNITY MANAGER: Alicia Prieto
+    lines.append("\n2. ACCIONES INMEDIATAS ESTA SEMANA")
 
-CAMPANAS ({len(use_camps)}):
-{camps_txt}
+    accion = 1
+    if zero_flows:
+        for f in zero_flows[:2]:
+            lines.append(f"\n  {accion}. FLUJO SIN CONVERSION: \"{f['name']}\"")
+            lines.append(f"     El flujo tiene {f['recipients']} recipients pero 0% conversion.")
+            lines.append(f"     Accion: Klaviyo > Flows > \"{f['name']}\" > Analytics")
+            lines.append(f"     Verificar que el trigger este configurado correctamente.")
+            lines.append(f"     Revisar los filtros de entrada — pueden estar excluyendo a todos.")
+            accion += 1
 
-PROMEDIO: {avg_open*100:.1f}% apertura | {avg_click*100:.2f}% clics | Revenue total: ${total_rev:.0f}
+    if avg_click < 0.015 and accion <= 3:
+        lines.append(f"\n  {accion}. MEJORAR TASA DE CLICS ({avg_click*100:.2f}% vs objetivo 1.5%)")
+        lines.append(f"     Accion: En la proxima campana, A/B testear el CTA principal.")
+        lines.append(f"     Version A: CTA generico actual")
+        lines.append(f"     Version B: CTA especifico con producto y descuento")
+        lines.append(f"     Ejemplo: 'Ver oferta' → 'Comprar [producto] con 15% OFF'")
+        lines.append(f"     Klaviyo > Campaigns > Create > A/B Test > Content")
+        accion += 1
 
-FLUJOS ACTIVOS:
-{flows_txt}
+    if best["conv_value"] > 0 and accion <= 3:
+        lines.append(f"\n  {accion}. REPLICAR PATRON DE MEJOR CAMPANA")
+        lines.append(f"     \"{best['name']}\" genero ${best['conv_value']:,.0f} con {best['open_rate']*100:.1f}% apertura.")
+        lines.append(f"     Accion: Revisar el asunto, segmento y hora de envio de esta campana.")
+        lines.append(f"     Crear la proxima campana siguiendo el mismo patron.")
+        accion += 1
 
-MEJOR CAMPANA: {best["name"]} con ${best["conv_value"]:.0f}
-CAMPANA A REVISAR: {worst["name"]} con ${worst["conv_value"]:.0f}
-{f'FLUJOS CON 0% CONVERSION: {", ".join(f["name"] for f in zero_flows)}' if zero_flows else ''}
+    if accion <= 3:
+        lines.append(f"\n  {accion}. REVISAR SEGMENTACION DE CAMPANAS")
+        lines.append(f"     Verificar que las campanas usen segmentos de contactos activos.")
+        lines.append(f"     Klaviyo > Segments > usar 'Engaged last 90 days' como base.")
+        lines.append(f"     Excluir compradores recientes de campanas promocionales.")
 
-Genera un analisis de optimizacion EN ESPANOL con:
+    lines.append("\n3. ACCIONES PROXIMO MES")
 
-1. DIAGNOSTICO (2-3 oraciones con numeros reales)
-2. TOP 3 ACCIONES ESTA SEMANA (muy especificas para Alicia, con pasos exactos en Klaviyo)
-3. TOP 3 ACCIONES PROXIMO MES
-4. RECOMENDACION DE ASUNTO basada en patrones exitosos de esta cuenta
-5. KPIS A MONITOREAR
+    if not any("win" in f["name"].lower() or "reactivat" in f["name"].lower() for f in flows):
+        lines.append("\n  1. CREAR FLUJO WIN-BACK (mayor impacto potencial)")
+        lines.append(f"     Segmento: compradores sin actividad en 60+ dias.")
+        lines.append(f"     Secuencia: Email reconexion (dia 0) > Oferta 15% OFF (dia 5) > Urgencia (dia 12).")
+        lines.append(f"     Impacto esperado: recuperar 5-10% de clientes inactivos.")
+    else:
+        lines.append("\n  1. OPTIMIZAR FLUJOS EXISTENTES")
+        lines.append(f"     Revisar los emails del flujo con menor conversion.")
+        lines.append(f"     A/B testear asuntos en el primer email de cada flujo.")
 
-Se muy especifico. Usa los datos reales. No seas generico."""
+    lines.append("\n  2. CONTENIDO EDUCATIVO")
+    lines.append(f"     Intercalar 1 email educativo por cada 2 promocionales.")
+    lines.append(f"     El contenido de valor genera mayor CTR sin necesidad de descuento.")
 
-    try:
-        r = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {openai_key}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "gpt-4o-mini",
-                "messages": [{"role": "user", "content": prompt}],
-                "max_tokens": 1500,
-                "temperature": 0.7,
-            },
-            timeout=60,
-        )
-        if r.ok:
-            return r.json()["choices"][0]["message"]["content"]
-        else:
-            print(f"  OpenAI error {r.status_code}: {r.text[:400]}")
-            return f"Error OpenAI {r.status_code}: {r.text[:200]}"
-    except Exception as e:
-        print(f"  OpenAI exception: {e}")
-        print(traceback.format_exc())
-        return f"Error: {e}"
+    lines.append("\n  3. OPTIMIZACION DE DESCUENTOS")
+    lines.append(f"     Testear descuentos intermedios (10-15%) vs descuentos agresivos.")
+    lines.append(f"     Agregar countdown de 48-72h para generar urgencia real.")
+    lines.append(f"     Descuentos moderados con urgencia generan mejor conversion que 30% OFF.")
+
+    lines.append("\n4. RECOMENDACION DE ASUNTO")
+    if best["open_rate"] > 0.5:
+        lines.append(f"     Basado en la campana de mayor apertura ({best['open_rate']*100:.1f}%):")
+        lines.append(f"     Replicar el estilo del asunto de \"{best['name']}\"")
+    lines.append(f"     Patrones que funcionan en esta cuenta:")
+    lines.append(f"     - Incluir el nombre del producto especifico")
+    lines.append(f"     - Usar urgencia real con fecha limite")
+    lines.append(f"     - Personalizar con {{{{ first_name }}}}")
+    lines.append(f"     - Evitar palabras genericas como 'oferta especial'")
+
+    lines.append("\n5. KPIS A MONITOREAR")
+    lines.append(f"     Apertura: objetivo >{'65%' if avg_open > 0.6 else '45%'} (actual {avg_open*100:.1f}%)")
+    lines.append(f"     Clics: objetivo >1.5% (actual {avg_click*100:.2f}%)")
+    lines.append(f"     Conversion: objetivo >0.3% por campana (actual {avg_conv*100:.3f}%)")
+    lines.append(f"     Revenue por recipient (RPR): objetivo >$0.10")
+    lines.append(f"     Tasa de baja: mantener <0.2% por envio")
+    if top_flows:
+        lines.append(f"     Flujo con mejor RPR: \"{top_flows[0]['name']}\" (${top_flows[0]['rpr']:.2f})")
+
+    return "\n".join(lines)
 
 
 def fetch_brand_data(brand_config):

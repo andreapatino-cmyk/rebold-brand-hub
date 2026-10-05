@@ -237,6 +237,7 @@ Genera un análisis de optimización EN ESPAÑOL con:
 Sé muy específico. Usa los datos reales. No seas genérico."""
 
     openai_key = os.environ.get("OPENAI_API_KEY", "")
+    print(f"  OpenAI key presente: {bool(openai_key)} ({len(openai_key)} chars)")
     if not openai_key:
         return "Configura OPENAI_API_KEY para generar optimizaciones."
     try:

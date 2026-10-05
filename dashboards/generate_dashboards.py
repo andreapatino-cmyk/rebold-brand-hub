@@ -120,12 +120,16 @@ class KlaviyoClient:
 
     def get_campaigns_with_messages(self):
         """Obtiene campañas con sus message IDs via endpoint de mensajes"""
+        # Usar revision mas reciente para este endpoint
+        old_rev = self.headers["revision"]
+        self.headers["revision"] = "2025-04-15"
         data = self.get("campaign-messages/", {
             "filter": 'equals(channel,"email")',
             "sort": "-updated_at",
-            "fields[campaign-message]": "id,label,channel,content",
+            "fields[campaign-message]": "id,label,channel",
             "include": "campaign",
         })
+        self.headers["revision"] = old_rev
         messages = data.get("data", [])
         included = {i["id"]: i for i in data.get("included", [])}
         print(f"  Messages: {len(messages)}, Included campaigns: {len(included)}")

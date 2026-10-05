@@ -118,38 +118,23 @@ class KlaviyoClient:
         data = self.get(f"campaigns/{campaign_id}/campaign-messages/")
         return [m.get("id", "") for m in data.get("data", [])]
 
-    def get_campaigns_with_messages(self):
-        """Obtiene campañas con message IDs usando include en el endpoint de campañas"""
-        data = self.get("campaigns/", {
-            "filter": 'equals(messages.channel,"email")',
-            "sort": "-updated_at",
-            "include": "campaign-messages",
+    def get_campaign_by_id(self, campaign_id):
+        """Obtiene datos de una campaña por su ID"""
+        data = self.get(f"campaigns/{campaign_id}/", {
             "fields[campaign]": "name,status,send_time,scheduled_at",
-            "fields[campaign-message]": "id,channel",
         })
-        campaigns_raw = data.get("data", [])
-        included = {i["id"]: i for i in data.get("included", [])}
-        print(f"  Campanas raw: {len(campaigns_raw)}, Included msgs: {len(included)}")
+        c = data.get("data", {})
+        attrs = c.get("attributes", {})
+        return {
+            "id": campaign_id,
+            "name": attrs.get("name", ""),
+            "status": attrs.get("status", "Sent"),
+            "send_time": attrs.get("send_time", "") or attrs.get("scheduled_at", ""),
+        }
 
-        camps_by_id = {}
-        camps_by_msg = {}
-        for c in campaigns_raw:
-            cid = c.get("id", "")
-            attrs = c.get("attributes", {})
-            rels = c.get("relationships", {})
-            msg_list = rels.get("campaign-messages", {}).get("data", [])
-            msg_ids = [m.get("id", "") for m in msg_list]
-            entry = {
-                "id": cid,
-                "name": attrs.get("name", ""),
-                "status": attrs.get("status", ""),
-                "send_time": attrs.get("send_time", "") or attrs.get("scheduled_at", ""),
-                "message_ids": msg_ids,
-            }
-            camps_by_id[cid] = entry
-            for mid in msg_ids:
-                camps_by_msg[mid] = entry
-        return camps_by_id, camps_by_msg
+    def get_campaigns_with_messages(self):
+        """Obtiene campañas — retorna dicts vacíos, se llena después por ID"""
+        return {}, {}
 
     def get_campaign_values(self, conv_metric_id, start_str, end_str):
         body = {
@@ -197,6 +182,85 @@ class KlaviyoClient:
         return data.get("data", [])
 
 
+def generate_optimizations_groq(brand_name, category, campaigns, flows):
+    """Genera optimizaciones reales usando Groq con datos de Klaviyo"""
+    groq_api_key = os.environ.get("GROQ_API_KEY", "")
+    if not groq_api_key:
+        return "Configura GROQ_API_KEY para generar optimizaciones con IA."
+
+    sent = [c for c in campaigns if c.get("recipients", 0) > 0]
+    if not sent:
+        return "Sin datos suficientes para generar optimizaciones."
+
+    avg_open = sum(c["open_rate"] for c in sent) / len(sent)
+    avg_click = sum(c["click_rate"] for c in sent) / len(sent)
+    total_rev = sum(c["conv_value"] for c in sent) + sum(f["conv_value"] for f in flows)
+    best = sorted(sent, key=lambda x: x["conv_value"], reverse=True)[0] if sent else None
+    worst = sorted(sent, key=lambda x: x["conv_value"])[0] if sent else None
+    zero_flows = [f for f in flows if f.get("recipients", 0) > 0 and f.get("conv_rate", 0) == 0]
+
+    camps_txt = "\n".join([
+        f"- {c['name']} | {c['date']} | Apertura: {c['open_rate']*100:.1f}% | Clics: {c['click_rate']*100:.2f}% | Revenue: ${c['conv_value']:.0f}"
+        for c in sent
+    ])
+    flows_txt = "\n".join([
+        f"- {f['name']} | Conv: {f['conv_rate']*100:.1f}% | Revenue: ${f['conv_value']:.0f} | RPR: ${f['rpr']:.2f}"
+        for f in flows[:8]
+    ])
+
+    prompt = f"""Eres un estratega experto en email marketing DTC para marcas en USA.
+
+MARCA: {brand_name} ({category})
+PERIODO: Últimos 30 días
+COMMUNITY MANAGER: Alicia Prieto
+
+CAMPAÑAS ENVIADAS ({len(sent)}):
+{camps_txt}
+
+PROMEDIO: {avg_open*100:.1f}% apertura | {avg_click*100:.2f}% clics | Revenue total: ${total_rev:.0f}
+
+FLUJOS ACTIVOS:
+{flows_txt}
+
+{f'MEJOR CAMPAÑA: {best["name"]} con ${best["conv_value"]:.0f}' if best else ''}
+{f'CAMPAÑA A REVISAR: {worst["name"]} con ${worst["conv_value"]:.0f}' if worst else ''}
+{f'FLUJOS CON 0% CONVERSIÓN: {", ".join(f["name"] for f in zero_flows)}' if zero_flows else ''}
+
+Genera un análisis de optimización EN ESPAÑOL con:
+
+1. DIAGNÓSTICO (2-3 oraciones con números reales)
+2. TOP 3 ACCIONES ESTA SEMANA (muy específicas para Alicia, con pasos exactos en Klaviyo)
+3. TOP 3 ACCIONES PRÓXIMO MES
+4. RECOMENDACIÓN DE ASUNTO basada en patrones exitosos
+5. KPIs A MONITOREAR
+
+Sé muy específico. Usa los datos reales. No seas genérico."""
+
+    try:
+        r = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {groq_api_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "llama-3.3-70b-versatile",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": 1500,
+                "temperature": 0.7,
+            },
+            timeout=60,
+        )
+        if r.ok:
+            return r.json()["choices"][0]["message"]["content"]
+        else:
+            print(f"  Groq error: {r.status_code} {r.text[:200]}")
+            return "Error generando optimizaciones con IA."
+    except Exception as e:
+        print(f"  Groq exception: {e}")
+        return "Error conectando con IA."
+
+
 def fetch_brand_data(brand_config):
     print(f"\nLeyendo {brand_config['name']}...")
     client = KlaviyoClient(brand_config["api_key"])
@@ -213,10 +277,6 @@ def fetch_brand_data(brand_config):
         if conv_metric_id:
             print(f"  Metric ID auto: {conv_metric_id}")
 
-    # Obtener campaign messages con datos de campaña incluidos
-    camps_by_id, camps_by_msg = client.get_campaigns_with_messages()
-    print(f"  Campanas unicas: {len(camps_by_id)}")
-
     # Report de valores de campanas
     campaigns = []
     if conv_metric_id:
@@ -227,13 +287,12 @@ def fetch_brand_data(brand_config):
             groupings = result.get("groupings", {})
             stats = result.get("statistics", {})
             cid = groupings.get("campaign_id", "")
-            mid = groupings.get("campaign_message_id", "")
-            if cid in seen:
+            if not cid or cid in seen:
                 continue
             seen.add(cid)
-            # Buscar datos de la campana
-            camp = camps_by_id.get(cid) or camps_by_msg.get(mid) or {}
-            name = camp.get("name", "") or camp.get("id", cid)
+            # Obtener nombre directamente por ID
+            camp = client.get_campaign_by_id(cid)
+            name = camp.get("name", cid)
             send_time = camp.get("send_time", "")
             date_str = ""
             if send_time:
@@ -254,8 +313,7 @@ def fetch_brand_data(brand_config):
                 "rpr": float(stats.get("revenue_per_recipient") or 0),
                 "recipients": int(stats.get("recipients") or 0),
             })
-        matched = sum(1 for c in campaigns if c["name"] and c["name"] != c["id"])
-        print(f"  Campanas con nombre: {matched}/{len(campaigns)}")
+        print(f"  Campanas con nombre: {sum(1 for c in campaigns if c['name'] != c['id'])}/{len(campaigns)}")
 
     # Flujos
     flows_raw = client.get_flows()
@@ -295,10 +353,18 @@ def fetch_brand_data(brand_config):
     avg_click = sum(c["click_rate"] for c in sent) / max(len(sent), 1)
     avg_conv = sum(c["conv_rate"] for c in sent) / max(len(sent), 1)
 
+    # Generar optimizaciones con Groq
+    print(f"  Generando optimizaciones con IA...")
+    optimizations = generate_optimizations_groq(
+        brand_config["name"], brand_config["category"], campaigns, flows
+    )
+    print(f"  Optimizaciones: {len(optimizations)} chars")
+
     return {
         "brand": brand_config,
         "campaigns": campaigns,
         "flows": flows,
+        "optimizations": optimizations,
         "kpis": {
             "total_revenue": total_camp_rev + total_flow_rev,
             "campaign_revenue": total_camp_rev,
@@ -323,6 +389,8 @@ def generate_html(data):
     campaigns_json = json.dumps(data["campaigns"], ensure_ascii=False)
     flows_json = json.dumps(data["flows"], ensure_ascii=False)
     flujos_json = json.dumps(FLUJOS_POR_MARCA.get(brand_key, []), ensure_ascii=False)
+    optimizations = data.get("optimizations", "Sin optimizaciones disponibles.")
+    optimizations_json = json.dumps(optimizations, ensure_ascii=False)
 
     p = []
     p.append('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">')
@@ -428,6 +496,7 @@ def generate_html(data):
     p.append(f'var FLUJOS={flujos_json};')
     p.append(f'var BRAND_NAME="{name}";')
     p.append(f'var GENERATED="{generated_at}";')
+    p.append(f'var OPTIMIZATIONS={optimizations_json};')
     p.append('''
 var df=null,dt=null,optTxt="",fluTxt="",selFlu="";
 function fmt8(d){return d.toISOString().split("T")[0]}
@@ -574,57 +643,15 @@ function render(){
 
   document.getElementById("t-optimizaciones").innerHTML=
     "<div style=\\"margin-top:18px\\">"+
-    "<div style=\\"font-size:13px;color:var(--tx2);margin-bottom:14px\\">Basado en "+withData.length+" campanas y "+ALL_FLOWS.length+" flujos. Usa Ejecutar optimizacion para el plan completo con pasos de accion.</div>"+
-    (avgCr<.015?"<div class=\\"oi wa\\"><div class=\\"otag\\">Importante</div><div class=\\"ott\\">Tasa de clics "+fmtP(avgCr)+" por debajo del objetivo 1.5%</div><div class=\\"odd\\">A/B testear CTAs mas especificos.</div></div>":"")+
-    (ALL_FLOWS.some(function(f){return f.recipients>0&&f.conv_rate===0})?"<div class=\\"oi cr\\"><div class=\\"otag\\">Critico</div><div class=\\"ott\\">Flujo con 0% conversion detectado</div><div class=\\"odd\\">Revisar trigger y configuracion en Klaviyo.</div></div>":"")+
-    "<div class=\\"oi ok\\"><div class=\\"otag\\">Accion</div><div class=\\"ott\\">Ejecuta el analisis completo</div><div class=\\"odd\\">Haz clic en Ejecutar optimizacion para todos los pasos de accion.</div></div>"+
+    "<div style=\\"font-size:11px;color:var(--tx3);margin-bottom:14px;padding:8px 12px;background:var(--s2);border-radius:6px;border:1px solid var(--b)\\">Generado con IA el "+GENERATED+" · Basado en "+withData.length+" campanas y "+ALL_FLOWS.length+" flujos</div>"+
+    "<div style=\\"white-space:pre-wrap;font-size:13px;line-height:1.8;color:var(--tx2);background:var(--s1);border:1px solid var(--b);border-radius:10px;padding:20px\\">"+OPTIMIZATIONS+"</div>"+
     "</div>";
 }
 
 function openOpt(){
   document.getElementById("m-opt").classList.add("open");
-  var camps=fCamps().filter(function(c){return c.recipients>0});
-  var flowRev=ALL_FLOWS.reduce(function(s,f){return s+f.conv_value},0);
-  var campRev=camps.reduce(function(s,c){return s+c.conv_value},0);
-  var avgOr=camps.length?camps.reduce(function(s,c){return s+c.open_rate},0)/camps.length:0;
-  var avgCr=camps.length?camps.reduce(function(s,c){return s+c.click_rate},0)/camps.length:0;
-  var sortRev=camps.slice().sort(function(a,b){return b.conv_value-a.conv_value});
-  var best=sortRev[0];
-  var plan="PLAN DE OPTIMIZACION -- "+BRAND_NAME.toUpperCase()+"\\n";
-  plan+="Periodo: "+document.getElementById("dlabel").textContent+"\\n";
-  plan+="Actualizado: "+GENERATED+"\\n\\n";
-  plan+="DIAGNOSTICO RAPIDO\\n";
-  plan+="Revenue total email: "+fmtU(campRev+flowRev)+"\\n";
-  plan+="  Campanas: "+fmtU(campRev)+" ("+camps.length+" con datos)\\n";
-  plan+="  Flujos: "+fmtU(flowRev)+" ("+ALL_FLOWS.length+" activos)\\n";
-  plan+="Apertura promedio: "+fmtP(avgOr)+"\\n";
-  plan+="Clics promedio: "+fmtP(avgCr)+"\\n";
-  if(best)plan+="Mejor campana: \\""+best.name+"\\" con "+fmtU(best.conv_value)+"\\n";
-  plan+="\\nACCIONES INMEDIATAS -- ESTA SEMANA\\n\\n";
-  plan+="1. SEGMENTACION\\n";
-  plan+="   Revisar segmentos de las ultimas 3 campanas\\n";
-  plan+="   Usar solo contactos activos (ultimos 60-90 dias)\\n";
-  plan+="   Como: Klaviyo > Segments > revisar condiciones\\n\\n";
-  plan+="2. TASA DE CLICS\\n";
-  plan+="   A/B testear CTA con accion especifica por producto\\n";
-  plan+="   Agregar segundo boton a mitad del email\\n";
-  plan+="   Como: Klaviyo > Campaigns > New > A/B Test\\n\\n";
-  plan+="3. FLUJOS\\n";
-  plan+="   Revisar flujo con menor conversion\\n";
-  plan+="   Verificar que el trigger dispare correctamente\\n";
-  plan+="   Como: Klaviyo > Flows > Analytics\\n\\n";
-  plan+="ACCIONES PROXIMO MES\\n\\n";
-  plan+="1. NUEVO FLUJO WIN-BACK\\n";
-  plan+="   Crear flujo para contactos sin compra en 60+ dias\\n";
-  plan+="   Secuencia: reconexion > oferta personalizada > urgencia\\n\\n";
-  plan+="2. CONTENIDO EDUCATIVO\\n";
-  plan+="   1 email educativo por cada 2 promocionales\\n\\n";
-  plan+="3. DESCUENTOS\\n";
-  plan+="   Probar 10-15% con countdown de 48 horas\\n\\n";
-  plan+="KPIS A MONITOREAR\\n";
-  plan+="Apertura: >45% | Clics: 1.5-2.5% | Conversion: >0.3% | RPR: >$0.10\\n";
-  optTxt=plan;
-  document.getElementById("m-opt-body").textContent=plan;
+  optTxt=OPTIMIZATIONS;
+  document.getElementById("m-opt-body").textContent=OPTIMIZATIONS;
 }
 
 function openFlujo(){

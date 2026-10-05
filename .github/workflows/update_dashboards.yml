@@ -5,9 +5,17 @@ on:
     - cron: '0 13 * * 1'
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   update-dashboards:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: Checkout repositorio
@@ -36,11 +44,14 @@ jobs:
           cd dashboards
           python generate_dashboards.py
 
-      - name: Instalar Netlify CLI
-        run: npm install -g netlify-cli
+      - name: Configurar Pages
+        uses: actions/configure-pages@v4
 
-      - name: Desplegar en Netlify
-        run: netlify deploy --prod --dir=dashboards/output --no-build
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      - name: Subir archivos a Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboards/output
+
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

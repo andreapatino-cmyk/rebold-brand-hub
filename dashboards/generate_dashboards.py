@@ -119,38 +119,37 @@ class KlaviyoClient:
         return [m.get("id", "") for m in data.get("data", [])]
 
     def get_campaigns_with_messages(self):
-        """Obtiene campañas con sus message IDs via endpoint de mensajes"""
-        # Usar revision mas reciente para este endpoint
-        old_rev = self.headers["revision"]
-        self.headers["revision"] = "2026-07-15"
-        data = self.get("campaign-messages/", {
-            "filter": 'equals(channel,"email")',
+        """Obtiene campañas con message IDs usando include en el endpoint de campañas"""
+        data = self.get("campaigns/", {
+            "filter": 'equals(messages.channel,"email")',
             "sort": "-updated_at",
-            "fields[campaign-message]": "id,label,channel",
-            "include": "campaign",
+            "include": "campaign-messages",
+            "fields[campaign]": "name,status,send_time,scheduled_at",
+            "fields[campaign-message]": "id,channel",
         })
-        self.headers["revision"] = old_rev
-        messages = data.get("data", [])
+        campaigns_raw = data.get("data", [])
         included = {i["id"]: i for i in data.get("included", [])}
-        print(f"  Messages: {len(messages)}, Included campaigns: {len(included)}")
+        print(f"  Campanas raw: {len(campaigns_raw)}, Included msgs: {len(included)}")
 
-        campaigns = {}
-        for msg in messages:
-            mid = msg.get("id", "")
-            rels = msg.get("relationships", {})
-            camp_data = rels.get("campaign", {}).get("data", {})
-            camp_id = camp_data.get("id", "")
-            camp = included.get(camp_id, {})
-            camp_attrs = camp.get("attributes", {})
-            if camp_id and camp_id not in campaigns:
-                campaigns[camp_id] = {
-                    "id": camp_id,
-                    "message_id": mid,
-                    "name": camp_attrs.get("name", ""),
-                    "status": camp_attrs.get("status", ""),
-                    "send_time": camp_attrs.get("send_time", "") or camp_attrs.get("scheduled_at", ""),
-                }
-        return campaigns, {msg.get("id", ""): v for v in campaigns.values() for msg in messages if msg.get("relationships", {}).get("campaign", {}).get("data", {}).get("id", "") == v["id"]}
+        camps_by_id = {}
+        camps_by_msg = {}
+        for c in campaigns_raw:
+            cid = c.get("id", "")
+            attrs = c.get("attributes", {})
+            rels = c.get("relationships", {})
+            msg_list = rels.get("campaign-messages", {}).get("data", [])
+            msg_ids = [m.get("id", "") for m in msg_list]
+            entry = {
+                "id": cid,
+                "name": attrs.get("name", ""),
+                "status": attrs.get("status", ""),
+                "send_time": attrs.get("send_time", "") or attrs.get("scheduled_at", ""),
+                "message_ids": msg_ids,
+            }
+            camps_by_id[cid] = entry
+            for mid in msg_ids:
+                camps_by_msg[mid] = entry
+        return camps_by_id, camps_by_msg
 
     def get_campaign_values(self, conv_metric_id, start_str, end_str):
         body = {

@@ -244,7 +244,7 @@ Sé muy específico. Usa los datos reales. No seas genérico."""
                 "Content-Type": "application/json",
             },
             json={
-                "model": "llama3-70b-8192",
+                "model": "meta-llama/llama-4-scout-17b-16e-instruct",
                 "messages": [{"role": "user", "content": prompt}],
                 "max_tokens": 1500,
                 "temperature": 0.7,

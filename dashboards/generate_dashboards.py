@@ -95,7 +95,7 @@ class KlaviyoClient:
     def get(self, endpoint, params=None):
         r = requests.get(f"{BASE_URL}/{endpoint}", headers=self.headers, params=params, timeout=30)
         if not r.ok:
-            print(f"  GET {endpoint} {r.status_code}: {r.text[:200]}")
+            print(f"  GET {endpoint} {r.status_code}: {r.text[:500]}")
             return {}
         return r.json()
 

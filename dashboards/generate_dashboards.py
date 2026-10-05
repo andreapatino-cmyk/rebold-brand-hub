@@ -23,7 +23,7 @@ BRANDS = {
     "ayoba": {
         "name": "Ayoba",
         "emoji": "🥩",
-        "category": "Biltong & droewors · USA",
+        "category": "Biltong y droewors · USA",
         "color": "#F2A93D",
         "color_dim": "rgba(242,169,61,0.12)",
         "api_key": os.environ.get("AYOBA_API_KEY", ""),
@@ -95,7 +95,7 @@ class KlaviyoClient:
     def get(self, endpoint, params=None):
         r = requests.get(f"{BASE_URL}/{endpoint}", headers=self.headers, params=params, timeout=30)
         if not r.ok:
-            print(f"  GET {endpoint} {r.status_code}: {r.text[:500]}")
+            print(f"  GET {endpoint} {r.status_code}: {r.text[:300]}")
             return {}
         return r.json()
 
@@ -113,13 +113,7 @@ class KlaviyoClient:
                 return item["id"]
         return None
 
-    def get_campaign_messages(self, campaign_id):
-        """Obtiene los message IDs de una campaña"""
-        data = self.get(f"campaigns/{campaign_id}/campaign-messages/")
-        return [m.get("id", "") for m in data.get("data", [])]
-
     def get_campaign_by_id(self, campaign_id):
-        """Obtiene datos de una campaña por su ID"""
         data = self.get(f"campaigns/{campaign_id}/", {
             "fields[campaign]": "name,status,send_time,scheduled_at",
         })
@@ -131,10 +125,6 @@ class KlaviyoClient:
             "status": attrs.get("status", "Sent"),
             "send_time": attrs.get("send_time", "") or attrs.get("scheduled_at", ""),
         }
-
-    def get_campaigns_with_messages(self):
-        """Obtiene campañas — retorna dicts vacíos, se llena después por ID"""
-        return {}, {}
 
     def get_campaign_values(self, conv_metric_id, start_str, end_str):
         body = {
@@ -152,10 +142,9 @@ class KlaviyoClient:
             }
         }
         resp = self.post("campaign-values-reports/", body)
-        results = []
         if isinstance(resp.get("data"), dict):
-            results = resp["data"].get("attributes", {}).get("results", [])
-        return results
+            return resp["data"].get("attributes", {}).get("results", [])
+        return []
 
     def get_flow_values(self, conv_metric_id, start_str, end_str):
         body = {
@@ -172,26 +161,26 @@ class KlaviyoClient:
             }
         }
         resp = self.post("flow-values-reports/", body)
-        results = []
         if isinstance(resp.get("data"), dict):
-            results = resp["data"].get("attributes", {}).get("results", [])
-        return results
+            return resp["data"].get("attributes", {}).get("results", [])
+        return []
 
     def get_flows(self):
         data = self.get("flows/", {"sort": "-updated", "fields[flow]": "id,name,status,trigger_type"})
         return data.get("data", [])
 
 
-def generate_optimizations_groq(brand_name, category, campaigns, flows):
-    """Genera optimizaciones reales usando Groq con datos de Klaviyo"""
-    groq_api_key = os.environ.get("GROQ_API_KEY", "")
-    if not groq_api_key:
-        return "Configura GROQ_API_KEY para generar optimizaciones con IA."
+def generate_optimizations(brand_name, category, campaigns, flows):
+    openai_key = os.environ.get("OPENAI_API_KEY", "")
+    print(f"  OpenAI key: {bool(openai_key)} ({len(openai_key)} chars)")
+    if not openai_key:
+        return "Configura OPENAI_API_KEY para generar optimizaciones con IA."
 
-    with_data = [c for c in campaigns if c.get("recipients", 0) > 0 or c.get("open_rate", 0) > 0]
-    use_camps = with_data if with_data else campaigns
+    use_camps = [c for c in campaigns if c.get("open_rate", 0) > 0 or c.get("recipients", 0) > 0]
     if not use_camps:
-        return "Sin datos suficientes para generar optimizaciones."
+        use_camps = campaigns
+    if not use_camps:
+        return "Sin datos de campanas para analizar."
 
     avg_open = sum(c["open_rate"] for c in use_camps) / len(use_camps)
     avg_click = sum(c["click_rate"] for c in use_camps) / len(use_camps)
@@ -212,10 +201,10 @@ def generate_optimizations_groq(brand_name, category, campaigns, flows):
     prompt = f"""Eres un estratega experto en email marketing DTC para marcas en USA.
 
 MARCA: {brand_name} ({category})
-PERIODO: Últimos 30 días
+PERIODO: Ultimos 90 dias
 COMMUNITY MANAGER: Alicia Prieto
 
-CAMPAÑAS ENVIADAS ({len(sent)}):
+CAMPANAS ({len(use_camps)}):
 {camps_txt}
 
 PROMEDIO: {avg_open*100:.1f}% apertura | {avg_click*100:.2f}% clics | Revenue total: ${total_rev:.0f}
@@ -223,24 +212,20 @@ PROMEDIO: {avg_open*100:.1f}% apertura | {avg_click*100:.2f}% clics | Revenue to
 FLUJOS ACTIVOS:
 {flows_txt}
 
-{f'MEJOR CAMPAÑA: {best["name"]} con ${best["conv_value"]:.0f}' if best else ''}
-{f'CAMPAÑA A REVISAR: {worst["name"]} con ${worst["conv_value"]:.0f}' if worst else ''}
-{f'FLUJOS CON 0% CONVERSIÓN: {", ".join(f["name"] for f in zero_flows)}' if zero_flows else ''}
+MEJOR CAMPANA: {best["name"]} con ${best["conv_value"]:.0f}
+CAMPANA A REVISAR: {worst["name"]} con ${worst["conv_value"]:.0f}
+{f'FLUJOS CON 0% CONVERSION: {", ".join(f["name"] for f in zero_flows)}' if zero_flows else ''}
 
-Genera un análisis de optimización EN ESPAÑOL con:
+Genera un analisis de optimizacion EN ESPANOL con:
 
-1. DIAGNÓSTICO (2-3 oraciones con números reales)
-2. TOP 3 ACCIONES ESTA SEMANA (muy específicas para Alicia, con pasos exactos en Klaviyo)
-3. TOP 3 ACCIONES PRÓXIMO MES
-4. RECOMENDACIÓN DE ASUNTO basada en patrones exitosos
-5. KPIs A MONITOREAR
+1. DIAGNOSTICO (2-3 oraciones con numeros reales)
+2. TOP 3 ACCIONES ESTA SEMANA (muy especificas para Alicia, con pasos exactos en Klaviyo)
+3. TOP 3 ACCIONES PROXIMO MES
+4. RECOMENDACION DE ASUNTO basada en patrones exitosos de esta cuenta
+5. KPIS A MONITOREAR
 
-Sé muy específico. Usa los datos reales. No seas genérico."""
+Se muy especifico. Usa los datos reales. No seas generico."""
 
-    openai_key = os.environ.get("OPENAI_API_KEY", "")
-    print(f"  OpenAI key presente: {bool(openai_key)} ({len(openai_key)} chars)")
-    if not openai_key:
-        return "Configura OPENAI_API_KEY para generar optimizaciones."
     try:
         r = requests.post(
             "https://api.openai.com/v1/chat/completions",
@@ -262,7 +247,6 @@ Sé muy específico. Usa los datos reales. No seas genérico."""
             print(f"  OpenAI error {r.status_code}: {r.text[:400]}")
             return f"Error OpenAI {r.status_code}: {r.text[:200]}"
     except Exception as e:
-        import traceback
         print(f"  OpenAI exception: {e}")
         print(traceback.format_exc())
         return f"Error: {e}"
@@ -277,14 +261,12 @@ def fetch_brand_data(brand_config):
     start_str = start.strftime("%Y-%m-%dT00:00:00+00:00")
     end_str = end.strftime("%Y-%m-%dT23:59:59+00:00")
 
-    # Metric ID
     conv_metric_id = brand_config.get("conversion_metric_id") or ""
     if not conv_metric_id:
         conv_metric_id = client.get_conversion_metric_id() or ""
         if conv_metric_id:
             print(f"  Metric ID auto: {conv_metric_id}")
 
-    # Report de valores de campanas
     campaigns = []
     if conv_metric_id:
         results = client.get_campaign_values(conv_metric_id, start_str, end_str)
@@ -297,7 +279,6 @@ def fetch_brand_data(brand_config):
             if not cid or cid in seen:
                 continue
             seen.add(cid)
-            # Obtener nombre directamente por ID
             camp = client.get_campaign_by_id(cid)
             name = camp.get("name", cid)
             send_time = camp.get("send_time", "")
@@ -322,13 +303,11 @@ def fetch_brand_data(brand_config):
             })
         print(f"  Campanas con nombre: {sum(1 for c in campaigns if c['name'] != c['id'])}/{len(campaigns)}")
 
-    # Flujos
     flows_raw = client.get_flows()
     print(f"  Flujos: {len(flows_raw)}")
     flows = []
     if conv_metric_id and flows_raw:
         flow_results = client.get_flow_values(conv_metric_id, start_str, end_str)
-        flows_by_id = {f.get("id", ""): f for f in flows_raw}
         flow_stats = {}
         for result in flow_results:
             groupings = result.get("groupings", {})
@@ -360,11 +339,8 @@ def fetch_brand_data(brand_config):
     avg_click = sum(c["click_rate"] for c in sent) / max(len(sent), 1)
     avg_conv = sum(c["conv_rate"] for c in sent) / max(len(sent), 1)
 
-    # Generar optimizaciones con Groq
     print(f"  Generando optimizaciones con IA...")
-    optimizations = generate_optimizations_groq(
-        brand_config["name"], brand_config["category"], campaigns, flows
-    )
+    optimizations = generate_optimizations(brand_config["name"], brand_config["category"], campaigns, flows)
     print(f"  Optimizaciones: {len(optimizations)} chars")
 
     return {
@@ -396,8 +372,7 @@ def generate_html(data):
     campaigns_json = json.dumps(data["campaigns"], ensure_ascii=False)
     flows_json = json.dumps(data["flows"], ensure_ascii=False)
     flujos_json = json.dumps(FLUJOS_POR_MARCA.get(brand_key, []), ensure_ascii=False)
-    optimizations = data.get("optimizations", "Sin optimizaciones disponibles.")
-    optimizations_json = json.dumps(optimizations, ensure_ascii=False)
+    optimizations_json = json.dumps(data.get("optimizations", ""), ensure_ascii=False)
 
     p = []
     p.append('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">')
@@ -430,9 +405,6 @@ def generate_html(data):
     p.append('.cn{color:var(--tx);font-weight:500;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}')
     p.append('.pill{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600}.ph{background:var(--acd);color:var(--ac)}.pm{background:var(--ambd);color:var(--amb)}.pl{background:var(--redd);color:var(--red)}')
     p.append('.ins{background:var(--acd);border:1px solid rgba(181,242,61,.15);border-radius:8px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:var(--tx2);line-height:1.6}.ins strong{color:var(--ac)}')
-    p.append('.oi{padding:12px;background:var(--s2);border-radius:7px;margin-bottom:9px;border-left:3px solid}.oi.cr{border-color:var(--red)}.oi.wa{border-color:var(--amb)}.oi.ok{border-color:var(--ac)}')
-    p.append('.otag{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}.oi.cr .otag{color:var(--red)}.oi.wa .otag{color:var(--amb)}.oi.ok .otag{color:var(--ac)}')
-    p.append('.ott{font-weight:600;color:var(--tx);font-size:12px;margin-bottom:3px}.odd{color:var(--tx2);font-size:11px;line-height:1.5}')
     p.append('.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}.modal-ov.open{display:flex}')
     p.append('.modal{background:var(--s1);border:1px solid var(--b);border-radius:14px;width:100%;max-width:700px;max-height:88vh;overflow:hidden;display:flex;flex-direction:column}')
     p.append('.mh{padding:15px 18px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}.mt{font-family:"Space Grotesk",sans-serif;font-size:14px;font-weight:600}')
@@ -442,16 +414,14 @@ def generate_html(data):
     p.append('.ftag{display:inline-block;background:rgba(61,168,242,.12);color:#3DA8F2;font-size:10px;padding:2px 6px;border-radius:4px;margin:3px 2px 0 0}')
     p.append('@media(max-width:900px){.kpig{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}.main{padding:14px}.topbar,.controls{padding:12px 14px}}')
     p.append('</style></head><body>')
-
     p.append('<div class="topbar"><div>')
     p.append(f'<div class="brand-name">{emoji} {name.upper()}</div>')
     p.append(f'<div class="brand-sub">{category} &middot; Email Intelligence &middot; Alicia Prieto</div>')
     p.append('</div><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">')
     p.append(f'<div class="updated">Actualizado: {generated_at}</div>')
-    p.append('<button class="btn btn-opt" onclick="openOpt()">&#9889; Ejecutar optimizacion</button>')
+    p.append('<button class="btn btn-opt" onclick="openOpt()">&#9889; Optimizacion IA</button>')
     p.append('<button class="btn btn-flu" onclick="openFlujo()">+ Crear flujo</button>')
     p.append('</div></div>')
-
     p.append('<div class="controls">')
     p.append('<span class="dl">Desde</span><input type="date" class="di" id="df" onchange="applyD()">')
     p.append('<span style="color:var(--tx3)">&#8594;</span><input type="date" class="di" id="dt" onchange="applyD()">')
@@ -462,32 +432,22 @@ def generate_html(data):
     p.append('<button class="qb" onclick="sq(\'lastmes\',this)">Mes anterior</button>')
     p.append('<span style="margin-left:auto;font-size:11px;color:var(--tx3)" id="dlabel"></span>')
     p.append('</div>')
-
     p.append('<div class="tabs">')
     p.append('<div class="tab active" onclick="showT(\'resultados\',this)">Resultados</div>')
     p.append('<div class="tab" onclick="showT(\'flujos\',this)">Flujos</div>')
-    p.append('<div class="tab" onclick="showT(\'optimizaciones\',this)">Optimizaciones</div>')
+    p.append('<div class="tab" onclick="showT(\'optimizaciones\',this)">Optimizaciones IA</div>')
     p.append('</div>')
-
-    p.append('<div class="main">')
-    p.append('<div id="t-resultados"></div>')
-    p.append('<div id="t-flujos" style="display:none"></div>')
-    p.append('<div id="t-optimizaciones" style="display:none"></div>')
-    p.append('</div>')
-
-    # Modal optimizacion
+    p.append('<div class="main"><div id="t-resultados"></div><div id="t-flujos" style="display:none"></div><div id="t-optimizaciones" style="display:none"></div></div>')
     p.append('<div class="modal-ov" id="m-opt"><div class="modal">')
-    p.append(f'<div class="mh"><div class="mt">&#9889; Plan de optimizacion — {name}</div><button class="cbtn" onclick="cm(\'m-opt\')">&#10005;</button></div>')
+    p.append(f'<div class="mh"><div class="mt">&#9889; Optimizacion IA — {name}</div><button class="cbtn" onclick="cm(\'m-opt\')">&#10005;</button></div>')
     p.append('<div class="mc" id="m-opt-body"></div>')
     p.append('<div class="mf"><button class="btn" style="background:var(--s2);border:1px solid var(--b);color:var(--tx2)" onclick="cm(\'m-opt\')">Cerrar</button>')
     p.append('<button class="btn" style="background:var(--acd);color:var(--ac);border:1px solid rgba(181,242,61,.2)" onclick="dlTxt(\'opt\')">&#8595; Descargar</button></div>')
     p.append('</div></div>')
-
-    # Modal flujos
     p.append('<div class="modal-ov" id="m-flu"><div class="modal">')
     p.append(f'<div class="mh"><div class="mt">+ Crear flujo — {name}</div><button class="cbtn" onclick="cm(\'m-flu\')">&#10005;</button></div>')
     p.append('<div class="mc" id="m-flu-body" style="white-space:normal">')
-    p.append('<p style="margin-bottom:12px;color:var(--tx2)">Selecciona el flujo. Recibiras el paso a paso completo para Klaviyo.</p>')
+    p.append('<p style="margin-bottom:12px;color:var(--tx2)">Selecciona el flujo. Recibiras el paso a paso completo.</p>')
     p.append('<div id="f-opts"></div>')
     p.append('<div id="f-res" style="display:none;white-space:pre-wrap;font-size:12px;line-height:1.7;color:var(--tx2)"></div>')
     p.append('</div>')
@@ -495,8 +455,6 @@ def generate_html(data):
     p.append('<button class="btn" style="background:var(--s2);border:1px solid var(--b);color:var(--tx2)" onclick="cm(\'m-flu\')">Cerrar</button>')
     p.append('<button class="btn" id="f-dl" style="display:none;background:var(--acd);color:var(--ac);border:1px solid rgba(181,242,61,.2)" onclick="dlTxt(\'flu\')">&#8595; Descargar</button>')
     p.append('</div></div></div>')
-
-    # Script
     p.append('<script>')
     p.append(f'var ALL_CAMPS={campaigns_json};')
     p.append(f'var ALL_FLOWS={flows_json};')
@@ -512,210 +470,149 @@ function fmtP(n){return(Number(n||0)*100).toFixed(1)+"%"}
 function pc(v,h,m){return v>=h?"ph":v>=m?"pm":"pl"}
 function cm(id){document.getElementById(id).classList.remove("open")}
 function showT(id,el){
-  ["resultados","flujos","optimizaciones"].forEach(function(t){
-    document.getElementById("t-"+t).style.display="none";
-  });
+  ["resultados","flujos","optimizaciones"].forEach(function(t){document.getElementById("t-"+t).style.display="none"});
   document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active")});
   document.getElementById("t-"+id).style.display="block";
   el.classList.add("active");
 }
 function initD(){
-  var today=new Date();
-  var from=new Date(today);
-  from.setDate(from.getDate()-30);
+  var today=new Date();var from=new Date(today);from.setDate(from.getDate()-30);
   dt=today;df=from;
   document.getElementById("dt").value=fmt8(today);
   document.getElementById("df").value=fmt8(from);
   updLabel();
 }
 function sq(n,btn){
-  document.querySelectorAll(".qb").forEach(function(b){b.classList.remove("active")});
-  btn.classList.add("active");
-  var today=new Date();
-  var from=new Date(today);
-  if(n==="mes"){
-    from=new Date(today.getFullYear(),today.getMonth(),1);
-  } else if(n==="lastmes"){
-    from=new Date(today.getFullYear(),today.getMonth()-1,1);
-    dt=new Date(today.getFullYear(),today.getMonth(),0);
-    document.getElementById("dt").value=fmt8(dt);
-  } else {
-    from.setDate(from.getDate()-n);
-    dt=today;
-    document.getElementById("dt").value=fmt8(today);
-  }
-  df=from;
-  document.getElementById("df").value=fmt8(from);
-  updLabel();
-  render();
+  document.querySelectorAll(".qb").forEach(function(b){b.classList.remove("active")});btn.classList.add("active");
+  var today=new Date();var from=new Date(today);
+  if(n==="mes"){from=new Date(today.getFullYear(),today.getMonth(),1);}
+  else if(n==="lastmes"){from=new Date(today.getFullYear(),today.getMonth()-1,1);dt=new Date(today.getFullYear(),today.getMonth(),0);document.getElementById("dt").value=fmt8(dt);}
+  else{from.setDate(from.getDate()-n);dt=today;document.getElementById("dt").value=fmt8(today);}
+  df=from;document.getElementById("df").value=fmt8(from);updLabel();render();
 }
 function applyD(){
   document.querySelectorAll(".qb").forEach(function(b){b.classList.remove("active")});
-  var f=document.getElementById("df").value;
-  var t=document.getElementById("dt").value;
-  if(f)df=new Date(f);
-  if(t)dt=new Date(t);
-  updLabel();
-  render();
+  var f=document.getElementById("df").value,t=document.getElementById("dt").value;
+  if(f)df=new Date(f);if(t)dt=new Date(t);updLabel();render();
 }
 function updLabel(){
   var ops={day:"2-digit",month:"short",year:"numeric"};
-  var f=df?df.toLocaleDateString("es",ops):"--";
-  var t=dt?dt.toLocaleDateString("es",ops):"--";
-  document.getElementById("dlabel").textContent=f+" > "+t;
+  document.getElementById("dlabel").textContent=(df?df.toLocaleDateString("es",ops):"--")+" > "+(dt?dt.toLocaleDateString("es",ops):"--");
 }
 function fCamps(){
   return ALL_CAMPS.filter(function(c){
     if(!c.date)return true;
-    var d=new Date(c.date);
-    return(!df||d>=df)&&(!dt||d<=dt);
+    var d=new Date(c.date);return(!df||d>=df)&&(!dt||d<=dt);
   });
 }
 function render(){
   var camps=fCamps();
-  var withData=camps.filter(function(c){return c.recipients>0});
-  var campRev=withData.reduce(function(s,c){return s+c.conv_value},0);
+  var wd=camps.filter(function(c){return c.recipients>0});
+  var campRev=wd.reduce(function(s,c){return s+c.conv_value},0);
   var flowRev=ALL_FLOWS.reduce(function(s,f){return s+f.conv_value},0);
   var totalRev=campRev+flowRev;
-  var avgOr=withData.length?withData.reduce(function(s,c){return s+c.open_rate},0)/withData.length:0;
-  var avgCr=withData.length?withData.reduce(function(s,c){return s+c.click_rate},0)/withData.length:0;
-  var avgCvr=withData.length?withData.reduce(function(s,c){return s+c.conv_rate},0)/withData.length:0;
-  var sortRev=withData.slice().sort(function(a,b){return b.conv_value-a.conv_value});
-  var best=sortRev[0];
-  var worst=sortRev[sortRev.length-1];
-
+  var avgOr=wd.length?wd.reduce(function(s,c){return s+c.open_rate},0)/wd.length:0;
+  var avgCr=wd.length?wd.reduce(function(s,c){return s+c.click_rate},0)/wd.length:0;
+  var avgCvr=wd.length?wd.reduce(function(s,c){return s+c.conv_rate},0)/wd.length:0;
+  var sortRev=wd.slice().sort(function(a,b){return b.conv_value-a.conv_value});
+  var best=sortRev[0],worst=sortRev[sortRev.length-1];
   var campsHTML="";
   if(camps.length){
     camps.forEach(function(c){
-      var noData=!c.recipients;
+      var nd=!c.recipients;
       campsHTML+="<tr><td><div class=\\"cn\\">"+c.name+"</div><div style=\\"font-size:10px;color:var(--tx3)\\">"+c.date+" &middot; "+c.status+"</div></td>";
-      campsHTML+="<td>"+(noData?"--":"<span class=\\"pill "+pc(c.open_rate,.65,.4)+"\\">"+fmtP(c.open_rate)+"</span>")+"</td>";
-      campsHTML+="<td>"+(noData?"--":"<span class=\\"pill "+pc(c.click_rate,.005,.002)+"\\">"+fmtP(c.click_rate)+"</span>")+"</td>";
+      campsHTML+="<td>"+(nd?"--":"<span class=\\"pill "+pc(c.open_rate,.65,.4)+"\\">"+fmtP(c.open_rate)+"</span>")+"</td>";
+      campsHTML+="<td>"+(nd?"--":"<span class=\\"pill "+pc(c.click_rate,.005,.002)+"\\">"+fmtP(c.click_rate)+"</span>")+"</td>";
       campsHTML+="<td style=\\"font-weight:600;color:var(--tx)\\">"+fmtU(c.conv_value)+"</td></tr>";
     });
-  } else {
-    campsHTML="<tr><td colspan=\\"4\\" style=\\"text-align:center;color:var(--tx3);padding:20px\\">Sin campanas en el periodo</td></tr>";
-  }
-
-  var bestHTML="";
+  }else{campsHTML="<tr><td colspan=\\"4\\" style=\\"text-align:center;color:var(--tx3);padding:20px\\">Sin campanas en el periodo</td></tr>";}
+  var bestHTML="",worstHTML="";
   if(best){
     bestHTML="<div class=\\"card\\" style=\\"margin-bottom:14px\\"><div class=\\"ch\\"><div class=\\"ct\\">Mejor campana</div></div><div class=\\"cb\\">";
     bestHTML+="<div style=\\"font-size:13px;font-weight:600;color:var(--ac);margin-bottom:10px\\">"+best.name+"</div>";
-    bestHTML+="<div style=\\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px\\">";
-    bestHTML+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Revenue</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700\\">"+fmtU(best.conv_value)+"</div></div>";
+    bestHTML+="<div style=\\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px\\"><div><div style=\\"font-size:10px;color:var(--tx3)\\">Revenue</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700\\">"+fmtU(best.conv_value)+"</div></div>";
     bestHTML+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Apertura</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700\\">"+fmtP(best.open_rate)+"</div></div>";
-    bestHTML+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Conv.</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700\\">"+fmtP(best.conv_rate)+"</div></div>";
-    bestHTML+="</div><div style=\\"font-size:12px;color:var(--tx2)\\">Mayor revenue del periodo. Replicar asunto y segmento.</div></div></div>";
+    bestHTML+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Conv.</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700\\">"+fmtP(best.conv_rate)+"</div></div></div></div></div>";
   }
-  var worstHTML="";
   if(worst&&worst!==best){
     worstHTML="<div class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">A revisar</div></div><div class=\\"cb\\">";
     worstHTML+="<div style=\\"font-size:13px;font-weight:600;color:var(--red);margin-bottom:10px\\">"+worst.name+"</div>";
-    worstHTML+="<div style=\\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px\\">";
-    worstHTML+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Revenue</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700;color:var(--red)\\">"+fmtU(worst.conv_value)+"</div></div>";
+    worstHTML+="<div style=\\"display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px\\"><div><div style=\\"font-size:10px;color:var(--tx3)\\">Revenue</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700;color:var(--red)\\">"+fmtU(worst.conv_value)+"</div></div>";
     worstHTML+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Apertura</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700\\">"+fmtP(worst.open_rate)+"</div></div>";
-    worstHTML+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Conv.</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700\\">"+fmtP(worst.conv_rate)+"</div></div>";
-    worstHTML+="</div><div style=\\"font-size:12px;color:var(--tx2)\\">Menor conversion. Revisar segmento y asunto.</div></div></div>";
+    worstHTML+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Conv.</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700\\">"+fmtP(worst.conv_rate)+"</div></div></div></div></div>";
   }
-
   document.getElementById("t-resultados").innerHTML=
     "<div class=\\"kpig\\" style=\\"margin-top:18px\\">"+
     "<div class=\\"kc g\\"><div class=\\"kl\\">Revenue total</div><div class=\\"kv\\">"+fmtU(totalRev)+"</div><div class=\\"ks\\">Campanas "+fmtU(campRev)+" + Flujos "+fmtU(flowRev)+"</div></div>"+
     "<div class=\\"kc g\\"><div class=\\"kl\\">Apertura promedio</div><div class=\\"kv\\">"+fmtP(avgOr)+"</div><div class=\\"ks\\">Industria 35-45%</div></div>"+
-    "<div class=\\"kc a\\"><div class=\\"kl\\">Clics promedio</div><div class=\\"kv\\">"+fmtP(avgCr)+"</div><div class=\\"ks\\">"+(avgCr<.015?"Por debajo del objetivo":"En rango objetivo")+"</div></div>"+
-    "<div class=\\"kc b\\"><div class=\\"kl\\">Conversion</div><div class=\\"kv\\">"+fmtP(avgCvr)+"</div><div class=\\"ks\\">"+withData.length+" campanas con datos</div></div>"+
+    "<div class=\\"kc a\\"><div class=\\"kl\\">Clics promedio</div><div class=\\"kv\\">"+fmtP(avgCr)+"</div><div class=\\"ks\\">"+(avgCr<.015?"Por debajo del objetivo":"En rango")+"</div></div>"+
+    "<div class=\\"kc b\\"><div class=\\"kl\\">Conversion</div><div class=\\"kv\\">"+fmtP(avgCvr)+"</div><div class=\\"ks\\">"+wd.length+" campanas con datos</div></div>"+
     "</div>"+
-    "<div class=\\"ins\\"><strong>Resumen:</strong> Revenue email: <strong>"+fmtU(totalRev)+"</strong>. Apertura: <strong>"+fmtP(avgOr)+"</strong>. "+withData.length+" campanas y "+ALL_FLOWS.length+" flujos en el periodo.</div>"+
+    "<div class=\\"ins\\"><strong>Resumen:</strong> Revenue: <strong>"+fmtU(totalRev)+"</strong> | Apertura: <strong>"+fmtP(avgOr)+"</strong> | "+wd.length+" campanas y "+ALL_FLOWS.length+" flujos.</div>"+
     "<div class=\\"two\\">"+
-    "<div class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">Campanas del periodo</div><div style=\\"font-size:11px;color:var(--tx3)\\">"+camps.length+" campanas</div></div>"+
+    "<div class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">Campanas</div><div style=\\"font-size:11px;color:var(--tx3)\\">"+camps.length+" campanas</div></div>"+
     "<table class=\\"tbl\\"><thead><tr><th>Campana</th><th>Apertura</th><th>Clics</th><th>Revenue</th></tr></thead><tbody>"+campsHTML+"</tbody></table></div>"+
     "<div>"+bestHTML+worstHTML+"</div></div>";
-
-  var flowsHTML="";
-  if(ALL_FLOWS.length){
-    ALL_FLOWS.forEach(function(f){
-      flowsHTML+="<tr><td class=\\"cn\\">"+f.name+"</td><td style=\\"font-size:11px;color:var(--tx3)\\">"+f.trigger+"</td>";
-      flowsHTML+="<td><span class=\\"pill "+pc(f.open_rate,.5,.4)+"\\">"+fmtP(f.open_rate)+"</span></td>";
-      flowsHTML+="<td><span class=\\"pill "+pc(f.conv_rate,.05,.01)+"\\">"+fmtP(f.conv_rate)+"</span></td>";
-      flowsHTML+="<td style=\\"font-weight:600;color:var(--tx)\\">"+fmtU(f.conv_value)+"</td>";
-      flowsHTML+="<td>"+fmtU(f.rpr)+"</td></tr>";
-    });
-  } else {
-    flowsHTML="<tr><td colspan=\\"6\\" style=\\"text-align:center;color:var(--tx3);padding:20px\\">Sin flujos activos</td></tr>";
-  }
+  var fHTML="";
+  ALL_FLOWS.forEach(function(f){
+    fHTML+="<tr><td class=\\"cn\\">"+f.name+"</td><td style=\\"font-size:11px;color:var(--tx3)\\">"+f.trigger+"</td>";
+    fHTML+="<td><span class=\\"pill "+pc(f.open_rate,.5,.4)+"\\">"+fmtP(f.open_rate)+"</span></td>";
+    fHTML+="<td><span class=\\"pill "+pc(f.conv_rate,.05,.01)+"\\">"+fmtP(f.conv_rate)+"</span></td>";
+    fHTML+="<td style=\\"font-weight:600;color:var(--tx)\\">"+fmtU(f.conv_value)+"</td><td>"+fmtU(f.rpr)+"</td></tr>";
+  });
   document.getElementById("t-flujos").innerHTML=
     "<div style=\\"margin-top:18px\\" class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">Flujos activos</div></div>"+
     "<table class=\\"tbl\\"><thead><tr><th>Flujo</th><th>Trigger</th><th>Apertura</th><th>Conv.</th><th>Revenue</th><th>RPR</th></tr></thead>"+
-    "<tbody>"+flowsHTML+"</tbody></table></div>";
-
+    "<tbody>"+(fHTML||"<tr><td colspan=\\"6\\" style=\\"text-align:center;color:var(--tx3);padding:20px\\">Sin flujos</td></tr>")+"</tbody></table></div>";
   document.getElementById("t-optimizaciones").innerHTML=
     "<div style=\\"margin-top:18px\\">"+
-    "<div style=\\"font-size:11px;color:var(--tx3);margin-bottom:14px;padding:8px 12px;background:var(--s2);border-radius:6px;border:1px solid var(--b)\\">Generado con IA el "+GENERATED+" · Basado en "+withData.length+" campanas y "+ALL_FLOWS.length+" flujos</div>"+
-    "<div style=\\"white-space:pre-wrap;font-size:13px;line-height:1.8;color:var(--tx2);background:var(--s1);border:1px solid var(--b);border-radius:10px;padding:20px\\">"+OPTIMIZATIONS+"</div>"+
-    "</div>";
+    "<div style=\\"font-size:11px;color:var(--tx3);margin-bottom:14px;padding:8px 12px;background:var(--s2);border-radius:6px;border:1px solid var(--b)\\">Generado con IA · "+GENERATED+"</div>"+
+    "<div style=\\"white-space:pre-wrap;font-size:13px;line-height:1.8;color:var(--tx2);background:var(--s1);border:1px solid var(--b);border-radius:10px;padding:20px\\">"+OPTIMIZATIONS+"</div></div>";
 }
-
-function openOpt(){
-  document.getElementById("m-opt").classList.add("open");
-  optTxt=OPTIMIZATIONS;
-  document.getElementById("m-opt-body").textContent=OPTIMIZATIONS;
-}
-
+function openOpt(){document.getElementById("m-opt").classList.add("open");optTxt=OPTIMIZATIONS;document.getElementById("m-opt-body").textContent=OPTIMIZATIONS;}
 function openFlujo(){
-  document.getElementById("m-flu").classList.add("open");
-  backF();
+  document.getElementById("m-flu").classList.add("open");backF();
   var html="";
   FLUJOS.forEach(function(f){
-    html+="<div class=\\"fsel\\" onclick=\\"selFlujo(\'"+f.id+"\',this)\\">";
-    html+="<div class=\\"fsn\\">"+f.name+"</div><div class=\\"fsd\\">"+f.desc+"</div>";
-    html+="<div style=\\"margin-top:6px\\">";
+    html+="<div class=\\"fsel\\" onclick=\\"selFlujo(\'"+f.id+"\',this)\\"><div class=\\"fsn\\">"+f.name+"</div><div class=\\"fsd\\">"+f.desc+"</div><div style=\\"margin-top:6px\\">";
     f.tags.forEach(function(t){html+="<span class=\\"ftag\\">"+t+"</span>"});
     html+="</div></div>";
   });
   document.getElementById("f-opts").innerHTML=html;
 }
-
 function selFlujo(id,el){
-  selFlu=id;
-  document.querySelectorAll(".fsel").forEach(function(f){f.classList.remove("sel")});
-  el.classList.add("sel");
+  selFlu=id;document.querySelectorAll(".fsel").forEach(function(f){f.classList.remove("sel")});el.classList.add("sel");
   var guias={
-    winback:"FLUJO WIN-BACK\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Metric > Placed Order\\nCondicion: Sin compra en ultimos 60 dias\\nY: Ha comprado al menos 1 vez\\n\\nFILTRO DE FLUJO:\\nNo compro en ultimos 60 dias\\nNo recibio este flujo en ultimos 90 dias\\n\\nEMAIL 1 - DIA 0 (RECONEXION)\\nAsunto A: \\"Te echamos de menos, {{ first_name }}\\"\\nAsunto B: \\"Como va tu progreso?\\"\\nPreheader: Ha pasado un tiempo desde tu ultimo pedido\\nContenido:\\n  1. Saludo personalizado\\n  2. Reconocer que ha pasado tiempo\\n  3. Recordar el producto que compro\\n  4. CTA: Ver mis productos favoritos\\n\\nEMAIL 2 - DIA 5 (OFERTA)\\nAsunto A: \\"Tu proximo pedido con 15% OFF\\"\\nPreheader: Codigo VUELVE15 valido 72 horas\\nContenido:\\n  1. Beneficios del producto\\n  2. 15% OFF con codigo VUELVE15\\n  3. Countdown 72h\\n  4. CTA: Usar mi descuento\\n  5. 2 testimonios\\n\\nEMAIL 3 - DIA 12 (URGENCIA)\\nAsunto: \\"Ultima oportunidad - descuento vence hoy\\"\\nContenido:\\n  1. Tu descuento vence HOY\\n  2. CTA prominente\\n  3. Si no convierte: mover a segmento inactivo\\n\\nKPIS 30 DIAS:\\nEmail 1: Apertura >45%, Clics >2%\\nEmail 2: Conversion >3%\\nEmail 3: Conversion >1.5%",
-    upsell:"FLUJO UPSELL POST-COMPRA\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Placed Order\\nDelay: 3 dias post-compra\\nCondicion: No ha comprado el complementario\\n\\nEMAIL 1 - DIA 3 (EDUCATIVO)\\nAsunto: \\"Tu pedido llego - ahora el siguiente nivel\\"\\nContenido:\\n  1. Confirmar recepcion\\n  2. Introducir complementario\\n  3. Por que la combinacion es superior\\n  4. CTA suave: Descubrir el combo\\n\\nEMAIL 2 - DIA 10 (OFERTA)\\nAsunto: \\"10% OFF en [complemento] esta semana\\"\\nContenido: Oferta 10% + CTA: Agregar al proximo pedido\\n\\nKPIS: Apertura >40%, Conversion >2%, AOV +15%",
-    educativo:"FLUJO EDUCATIVO POST-PRIMERA COMPRA\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Added to List (Buyers)\\nCondicion: Primera compra solamente\\n\\nEMAIL 1 - DIA 7\\nAsunto: Como usar [producto] para maximos resultados\\nContenido: Guia de uso, dosis, timing\\n\\nEMAIL 2 - DIA 14\\nAsunto: La ciencia detras de [ingrediente/proceso]\\nContenido: Articulo educativo\\n\\nEMAIL 3 - DIA 21\\nAsunto: Tu rutina optimizada con [producto]\\nContenido: Plan semanal\\n\\nEMAIL 4 - DIA 28\\nAsunto: Listo para el siguiente nivel? 10% OFF\\nContenido: Conversion con descuento\\n\\nKPIS: Recompra >25% en 60 dias",
-    abandono:"FLUJO ABANDONO DE CARRITO\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Started Checkout\\nFILTRO CRITICO: NO Placed Order en ultimas 4 horas\\n\\nEMAIL 1 - 1 HORA\\nAsunto: Olvidaste algo en tu carrito, {{ first_name }}\\nContenido: Productos del carrito + CTA: Volver\\n\\nEMAIL 2 - 24 HORAS\\nAsunto: Miles de clientes ya lo eligieron\\nContenido: Reviews + garantia + CTA: Completar pedido\\n\\nEMAIL 3 - 72 HORAS\\nAsunto: 10% OFF solo por 24 horas\\nContenido: Codigo descuento + CTA prominente\\n\\nKPIS: Recuperacion total 10-15% carritos",
-    vip:"FLUJO VIP FIDELIZACION\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Placed Order (exactamente 3ra compra)\\n\\nEMAIL 1 - DIA 0\\nAsunto: {{ first_name }}, eres parte de nuestro circulo VIP\\nContenido: Anuncio estatus VIP + beneficios\\n\\nEMAIL 2 - DIA 3\\nAsunto: Acceso anticipado: nuevo producto antes que nadie\\nContenido: Codigo acceso anticipado\\n\\nEMAIL 3 - DIA 10\\nAsunto: Tu descuento VIP del mes: 20% en todo\\nContenido: Descuento mensual VIP\\n\\nKPIS: Retencion >85% en 60 dias, AOV +30%",
-    welcome:"FLUJO WELCOME SERIES\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Added to List (lista principal)\\n\\nBIFURCACION:\\nSi ya compro: email especial cliente existente\\nSi no ha comprado: secuencia educativa + oferta\\n\\nEMAIL 1 - INMEDIATO\\nAsunto: Bienvenido a "+BRAND_NAME+"\\nContenido: Historia marca + que esperar\\n\\nEMAIL 2 - DIA 3\\nAsunto: Sabes que hace diferente a [producto]?\\nContenido: Educativo + diferenciacion\\n\\nEMAIL 3 - DIA 7\\nAsunto: Tu primera compra con 15% OFF\\nCodigo: BIENVENIDO15 (7 dias)\\n\\nKPIS: Email 1 Apertura >55%, Email 3 Conversion >4%",
-    replenishment:"FLUJO REABASTECIMIENTO\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Placed Order\\nDelay: [X] dias segun consumo del producto\\n\\nEMAIL 1 - DIA [X-5]\\nAsunto: Tu [producto] se esta acabando pronto\\nContenido: Recordatorio + boton reorden 1 clic\\n\\nEMAIL 2 - DIA [X]\\nAsunto: Ya te quedaste sin [producto]?\\nContenido: 10% OFF reorden inmediato\\n\\nKPIS: Reorden >30%, RPR >$0.80",
-    bundle:"FLUJO BUNDLE EDUCATION\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Placed Order producto A\\nCondicion: No ha comprado producto B\\n\\nEMAIL 1 - DIA 4\\nAsunto: El combo perfecto para [beneficio]\\nContenido: Por que A+B son superiores juntos\\n\\nEMAIL 2 - DIA 10\\nAsunto: Bundle A+B - ahorra 15% comprando juntos\\nContenido: Descuento bundle\\n\\nKPIS: Adopcion >10%, AOV +25%"
+    winback:"FLUJO WIN-BACK\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Metric > Placed Order\\nCondicion: Sin compra en ultimos 60 dias\\nY: Ha comprado al menos 1 vez\\n\\nFILTRO: No compro en 60 dias / No recibio este flujo en 90 dias\\n\\nEMAIL 1 - DIA 0\\nAsunto A: \\"Te echamos de menos, {{ first_name }}\\"\\nAsunto B: \\"Como va tu progreso?\\"\\nPreheader: Ha pasado un tiempo desde tu ultimo pedido\\nContenido: Saludo + recordar producto comprado + CTA suave\\n\\nEMAIL 2 - DIA 5\\nAsunto: \\"Tu proximo pedido con 15% OFF\\"\\nPreheader: Codigo VUELVE15 valido 72h\\nContenido: Beneficios + 15% OFF + countdown + 2 testimonios\\n\\nEMAIL 3 - DIA 12\\nAsunto: \\"Ultima oportunidad - descuento vence hoy\\"\\nContenido: Urgencia + CTA prominente\\nSi no convierte: mover a segmento inactivo\\n\\nKPIS: Email 1 Apertura >45% | Email 2 Conv >3% | Email 3 Conv >1.5%",
+    upsell:"FLUJO UPSELL POST-COMPRA\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Placed Order\\nDelay: 3 dias\\nCondicion: No ha comprado el complementario\\n\\nEMAIL 1 - DIA 3\\nAsunto: \\"Tu pedido llego - ahora el siguiente nivel\\"\\nContenido: Confirmar recepcion + introducir complementario + CTA suave\\n\\nEMAIL 2 - DIA 10\\nAsunto: \\"10% OFF en [complemento] esta semana\\"\\nContenido: 10% OFF + CTA: Agregar al proximo pedido\\n\\nKPIS: Apertura >40% | Conv >2% | AOV +15%",
+    educativo:"FLUJO EDUCATIVO POST-PRIMERA COMPRA\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Added to List (Buyers) - primera compra\\n\\nEMAIL 1 - DIA 7: Como usar [producto] para maximos resultados\\nEMAIL 2 - DIA 14: La ciencia detras de [ingrediente]\\nEMAIL 3 - DIA 21: Tu rutina optimizada con [producto]\\nEMAIL 4 - DIA 28: Listo para el siguiente nivel? 10% OFF\\n\\nKPIS: Recompra >25% en 60 dias | Apertura >45%",
+    abandono:"FLUJO ABANDONO DE CARRITO\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Started Checkout\\nFILTRO CRITICO: NO Placed Order en ultimas 4 horas\\n\\nEMAIL 1 - 1 HORA: Recordatorio suave + productos del carrito\\nEMAIL 2 - 24 HORAS: Social proof + garantia\\nEMAIL 3 - 72 HORAS: 10% OFF codigo + urgencia\\n\\nKPIS: Recuperacion total 10-15%",
+    vip:"FLUJO VIP\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Placed Order (exactamente 3ra compra)\\n\\nEMAIL 1 - DIA 0: Bienvenida VIP + beneficios\\nEMAIL 2 - DIA 3: Acceso anticipado nuevo producto\\nEMAIL 3 - DIA 10: Descuento VIP 20% mensual\\n\\nKPIS: Retencion >85% en 60 dias | AOV +30%",
+    welcome:"FLUJO WELCOME SERIES\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Added to List (lista principal)\\n\\nEMAIL 1 - INMEDIATO: Bienvenida + historia marca\\nEMAIL 2 - DIA 3: Educativo + diferenciacion\\nEMAIL 3 - DIA 7: Primera compra 15% OFF (BIENVENIDO15)\\n\\nKPIS: Apertura Email 1 >55% | Conv Email 3 >4%",
+    replenishment:"FLUJO REABASTECIMIENTO\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Placed Order\\nDelay: [X] dias segun consumo\\n\\nEMAIL 1 - DIA [X-5]: Recordatorio amigable + boton reorden\\nEMAIL 2 - DIA [X]: 10% OFF reorden inmediato\\n\\nKPIS: Reorden >30% | RPR >$0.80",
+    bundle:"FLUJO BUNDLE EDUCATION\\nMarca: "+BRAND_NAME+"\\n\\nTRIGGER: Placed Order producto A (no ha comprado B)\\n\\nEMAIL 1 - DIA 4: Por que A+B son superiores juntos\\nEMAIL 2 - DIA 10: Bundle A+B - ahorra 15%\\n\\nKPIS: Adopcion >10% | AOV +25%"
   };
-  var guia=guias[id]||"Guia no disponible.";
-  fluTxt=guia;
-  document.getElementById("f-res").textContent=guia;
+  fluTxt=guias[id]||"Guia no disponible.";
+  document.getElementById("f-res").textContent=fluTxt;
   document.getElementById("f-opts").style.display="none";
   document.getElementById("f-res").style.display="block";
   document.getElementById("f-back").style.display="inline-flex";
   document.getElementById("f-dl").style.display="inline-flex";
 }
-
 function backF(){
   document.getElementById("f-opts").style.display="block";
   document.getElementById("f-res").style.display="none";
   document.getElementById("f-back").style.display="none";
   document.getElementById("f-dl").style.display="none";
-  document.querySelectorAll(".fsel").forEach(function(f){f.classList.remove("sel")});
-  fluTxt="";
+  document.querySelectorAll(".fsel").forEach(function(f){f.classList.remove("sel")});fluTxt="";
 }
-
 function dlTxt(t){
-  var txt=t==="opt"?optTxt:fluTxt;
-  if(!txt)return;
+  var txt=t==="opt"?optTxt:fluTxt;if(!txt)return;
   var a=document.createElement("a");
   a.href="data:text/plain;charset=utf-8,"+encodeURIComponent(txt);
   a.download=BRAND_NAME.toLowerCase().replace(/ /g,"_")+"_"+(t==="opt"?"optimizacion":"flujo_"+selFlu)+".txt";
   a.click();
 }
-
 initD();render();
 ''')
     p.append('</script></body></html>')

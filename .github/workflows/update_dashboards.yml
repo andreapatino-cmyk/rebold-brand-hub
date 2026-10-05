@@ -39,7 +39,7 @@ jobs:
           BROOKLYN_METRIC_ID: ${{ secrets.BROOKLYN_METRIC_ID }}
           BEG_API_KEY: ${{ secrets.BEG_API_KEY }}
           BEG_METRIC_ID: ${{ secrets.BEG_METRIC_ID }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           OUTPUT_DIR: output
         run: |
           cd dashboards

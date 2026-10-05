@@ -252,13 +252,16 @@ Sé muy específico. Usa los datos reales. No seas genérico."""
             timeout=60,
         )
         if r.ok:
-            return r.json()["choices"][0]["message"]["content"]
+            result = r.json()
+            return result["choices"][0]["message"]["content"]
         else:
-            print(f"  Groq error: {r.status_code} {r.text[:200]}")
-            return "Error generando optimizaciones con IA."
+            print(f"  Groq error {r.status_code}: {r.text[:400]}")
+            return f"Error Groq {r.status_code}: {r.text[:200]}"
     except Exception as e:
+        import traceback
         print(f"  Groq exception: {e}")
-        return "Error conectando con IA."
+        print(traceback.format_exc())
+        return f"Error: {e}"
 
 
 def fetch_brand_data(brand_config):
@@ -266,7 +269,7 @@ def fetch_brand_data(brand_config):
     client = KlaviyoClient(brand_config["api_key"])
 
     end = datetime.utcnow()
-    start = end - timedelta(days=30)
+    start = end - timedelta(days=90)
     start_str = start.strftime("%Y-%m-%dT00:00:00+00:00")
     end_str = end.strftime("%Y-%m-%dT23:59:59+00:00")
 

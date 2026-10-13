@@ -1,0 +1,33 @@
+# Estrategia Brooklyn Biltong — Reglas para optimizaciones
+
+## Posicionamiento
+- Producto primero, "biltong" solo como herencia cultural
+- No comparar directamente con jerky americano en comunicaciones
+- No usar "Biltong 101" ni "historia vs jerky" como angulos de contenido
+
+## Escala de descuentos
+- Maximo descuento general: 15% OFF
+- Descuentos mayores solo en ventanas aprobadas (ej: National Snack Day 20 oct)
+- No ofrecer descuentos generales sin aprobacion previa
+- Codigo activo: BACK20 (verificar vigencia antes de recomendar)
+
+## Contenido
+- NO recomendar emails educativos — son los de menor CTR (Myth 0.43%, EDU 0.77%)
+- La estrategia actual elimino los emails educativos
+- Enfocarse en producto y oferta directa
+
+## Flujos activos — no duplicar
+- Win-Back A: 90-365 dias de inactividad (NO crear win-back de 60 dias — se superpone)
+- First Purchase Flow: desde el 7 oct solo acepta primeras compras
+- No crear flujos de "bienvenida con historia de la marca"
+
+## Metricas criticas actuales
+- Rebote: 6.04% (restriccion principal — prioridad maxima)
+- Puntaje Klaviyo: 60 (requiere mejora urgente)
+- Destinatarios cayeron de ~8,800 a ~2,141 por envio en octubre
+- Canal SMS tiene mayor RPR que email (Labor Day SMS: $1.39 vs email)
+
+## Prioridades de la cuenta
+1. Reducir tasa de rebote
+2. Recuperar volumen de envios
+3. Mejorar entregabilidad antes de escalar campanas

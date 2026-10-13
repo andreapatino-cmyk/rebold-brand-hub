@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rebold — Estrategia semanal</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0D0F0E;--s1:#151918;--s2:#1C201F;--b:#252B29;--ac:#B5F23D;--acd:rgba(181,242,61,.12);--red:#FF4D4D;--redd:rgba(255,77,77,.12);--tx:#E8EDE8;--tx2:#8A9490;--tx3:#5A6460;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:inherit;margin:0;padding:0}
+body{background:var(--bg);color:var(--tx);font-family:Inter,sans-serif;font-size:14px;min-height:100vh}
+.topbar{padding:16px 24px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:"Space Grotesk",sans-serif;font-size:17px;font-weight:700;color:var(--ac)}
+.logo span{color:var(--tx3);font-weight:400;font-size:12px;margin-left:8px}
+.main{max-width:680px;margin:0 auto;padding:32px 24px}
+h1{font-family:"Space Grotesk",sans-serif;font-size:22px;font-weight:700;margin-bottom:8px}
+.sub{color:var(--tx3);font-size:13px;margin-bottom:32px;line-height:1.6}
+.field{margin-bottom:20px}
+label{display:block;font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+select,input,textarea{width:100%;background:var(--s1);border:1px solid var(--b);color:var(--tx);font-family:Inter,sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;transition:border .2s;-webkit-appearance:none}
+select:focus,input:focus,textarea:focus{border-color:var(--ac)}
+select option{background:var(--s1)}
+textarea{resize:vertical;min-height:120px;line-height:1.6}
+.hint{font-size:11px;color:var(--tx3);margin-top:6px;line-height:1.5}
+.btn{width:100%;padding:13px;background:var(--ac);color:#0D0F0E;font-family:Inter,sans-serif;font-size:14px;font-weight:700;border:none;border-radius:8px;cursor:pointer;transition:all .2s;margin-top:8px}
+.btn:hover{background:#c8ff50}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.msg{padding:14px 16px;border-radius:8px;font-size:13px;margin-top:16px;display:none;line-height:1.5}
+.msg.ok{background:var(--acd);border:1px solid rgba(181,242,61,.2);color:var(--ac)}
+.msg.err{background:var(--redd);border:1px solid rgba(255,77,77,.2);color:var(--red)}
+.divider{border:none;border-top:1px solid var(--b);margin:24px 0}
+.section-title{font-family:"Space Grotesk",sans-serif;font-size:14px;font-weight:600;margin-bottom:16px}
+.tag-grid{display:flex;flex-wrap:wrap;gap:8px}
+.tag{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--b);background:var(--s2);color:var(--tx2);transition:all .2s;user-select:none}
+.tag:hover{border-color:var(--ac);color:var(--ac)}
+.tag.sel{background:var(--acd);border-color:var(--ac);color:var(--ac)}
+.success-screen{display:none;text-align:center;padding:60px 24px}
+.success-icon{font-size:48px;margin-bottom:16px}
+.success-title{font-family:"Space Grotesk",sans-serif;font-size:20px;font-weight:700;color:var(--ac);margin-bottom:8px}
+.success-sub{color:var(--tx3);font-size:13px;line-height:1.6}
+.reset-btn{margin-top:24px;padding:10px 24px;background:var(--s2);border:1px solid var(--b);color:var(--tx2);font-family:Inter,sans-serif;font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;transition:all .2s}
+.reset-btn:hover{border-color:var(--ac);color:var(--ac)}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">REBOLD <span>Estrategia semanal · Email Intelligence</span></div>
+</div>
+
+<div id="form-screen">
+<div class="main">
+  <h1>Actualizar estrategia de marca</h1>
+  <p class="sub">Completa este formulario cada semana. El dashboard usará esta información para generar recomendaciones más precisas el próximo lunes.</p>
+
+  <div class="field">
+    <label>Marca</label>
+    <select id="brand">
+      <option value="">— Selecciona —</option>
+      <option value="brooklyn">Brooklyn Biltong</option>
+      <option value="granite">Granite Nutrition</option>
+      <option value="ayoba">Ayoba</option>
+      <option value="beg">Beg & Barker</option>
+    </select>
+  </div>
+
+  <div class="field">
+    <label>Tu nombre</label>
+    <input type="text" id="author" placeholder="Ej: Andrea Prieto">
+  </div>
+
+  <hr class="divider">
+  <div class="section-title">¿Qué pasó esta semana?</div>
+
+  <div class="field">
+    <label>Campañas destacadas</label>
+    <textarea id="campaigns_notes" placeholder="Ej: Labor Day Email 2 funcionó muy bien ($2,292). Win-Back Tramo 2 no convirtió porque el botón no aplicaba el código BACK20 — ya corregido el 7 oct."></textarea>
+    <div class="hint">Qué funcionó, qué no, y por qué. El dashboard aprende de estos patrones.</div>
+  </div>
+
+  <div class="field">
+    <label>Reglas y restricciones de la marca</label>
+    <textarea id="strategy_notes" placeholder="Ej: No usar descuentos mayores a 15% en octubre salvo National Snack Day (20 oct). Evitar emails educativos — bajo CTR. First Purchase Flow acepta solo primeras compras desde el 7 oct."></textarea>
+    <div class="hint">Reglas de posicionamiento, escala de descuentos, flujos modificados.</div>
+  </div>
+
+  <div class="field">
+    <label>Alertas o problemas activos</label>
+    <textarea id="alerts" placeholder="Ej: Rebote en 6.04% — prioridad máxima esta semana. Puntaje Klaviyo en 60. Destinatarios cayeron de 8,800 a 2,141 por envío en octubre."></textarea>
+    <div class="hint">Entregabilidad, segmentos con problemas, métricas preocupantes.</div>
+  </div>
+
+  <div class="field">
+    <label>Prioridades esta semana</label>
+    <div class="tag-grid" id="tags">
+      <div class="tag" onclick="this.classList.toggle('sel')">Reducir rebote</div>
+      <div class="tag" onclick="this.classList.toggle('sel')">Mejorar entregabilidad</div>
+      <div class="tag" onclick="this.classList.toggle('sel')">Aumentar RPR</div>
+      <div class="tag" onclick="this.classList.toggle('sel')">Recuperar volumen</div>
+      <div class="tag" onclick="this.classList.toggle('sel')">Optimizar flujos</div>
+      <div class="tag" onclick="this.classList.toggle('sel')">Limpiar lista</div>
+      <div class="tag" onclick="this.classList.toggle('sel')">A/B testear asuntos</div>
+      <div class="tag" onclick="this.classList.toggle('sel')">Crear flujo nuevo</div>
+      <div class="tag" onclick="this.classList.toggle('sel')">Revisar segmentos</div>
+      <div class="tag" onclick="this.classList.toggle('sel')">Canal SMS</div>
+    </div>
+  </div>
+
+  <div class="field">
+    <label>Notas adicionales (opcional)</label>
+    <textarea id="extra" placeholder="Cualquier contexto que deba considerar el dashboard al generar recomendaciones." style="min-height:80px"></textarea>
+  </div>
+
+  <button class="btn" onclick="submit()" id="submit-btn">Guardar estrategia →</button>
+  <div class="msg" id="msg"></div>
+</div>
+</div>
+
+<div id="success-screen" class="success-screen">
+  <div class="success-icon">✅</div>
+  <div class="success-title">Estrategia guardada</div>
+  <div class="success-sub" id="success-msg"></div>
+  <button class="reset-btn" onclick="resetForm()">Actualizar otra marca</button>
+</div>
+
+<script>
+const N8N_WEBHOOK = "https://n8n-m0b3.onrender.com/webhook/strategy-update";
+
+const BRAND_NAMES = {
+  brooklyn: "Brooklyn Biltong",
+  granite: "Granite Nutrition",
+  ayoba: "Ayoba",
+  beg: "Beg & Barker"
+};
+
+function showMsg(text, type) {
+  const el = document.getElementById("msg");
+  el.textContent = text;
+  el.className = `msg ${type}`;
+  el.style.display = "block";
+}
+
+function getSelectedTags() {
+  return Array.from(document.querySelectorAll(".tag.sel")).map(t => t.textContent);
+}
+
+async function submit() {
+  const brand = document.getElementById("brand").value;
+  const author = document.getElementById("author").value.trim();
+
+  if (!brand) { showMsg("Selecciona una marca.", "err"); return; }
+  if (!author) { showMsg("Ingresa tu nombre.", "err"); return; }
+
+  const payload = {
+    brand,
+    author,
+    campaigns_notes: document.getElementById("campaigns_notes").value.trim(),
+    strategy_notes: document.getElementById("strategy_notes").value.trim(),
+    alerts: document.getElementById("alerts").value.trim(),
+    priorities: getSelectedTags(),
+    extra: document.getElementById("extra").value.trim(),
+  };
+
+  if (!payload.campaigns_notes && !payload.strategy_notes && !payload.alerts) {
+    showMsg("Completa al menos un campo de contenido.", "err");
+    return;
+  }
+
+  const btn = document.getElementById("submit-btn");
+  btn.disabled = true;
+  btn.textContent = "Guardando...";
+
+  try {
+    const res = await fetch(N8N_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    if (res.ok) {
+      document.getElementById("form-screen").style.display = "none";
+      document.getElementById("success-screen").style.display = "block";
+      document.getElementById("success-msg").textContent =
+        `La estrategia de ${BRAND_NAMES[brand]} quedó actualizada. El dashboard de email la usará el próximo lunes para generar recomendaciones más precisas.`;
+    } else {
+      const err = await res.text();
+      showMsg(`Error al guardar. Intenta de nuevo o contacta a Natalia. (${res.status})`, "err");
+      btn.disabled = false;
+      btn.textContent = "Guardar estrategia →";
+    }
+  } catch(e) {
+    showMsg("Error de conexión. Verifica tu internet e intenta de nuevo.", "err");
+    btn.disabled = false;
+    btn.textContent = "Guardar estrategia →";
+  }
+}
+
+function resetForm() {
+  document.getElementById("form-screen").style.display = "block";
+  document.getElementById("success-screen").style.display = "none";
+  document.getElementById("brand").value = "";
+  document.getElementById("author").value = "";
+  document.getElementById("campaigns_notes").value = "";
+  document.getElementById("strategy_notes").value = "";
+  document.getElementById("alerts").value = "";
+  document.getElementById("extra").value = "";
+  document.querySelectorAll(".tag.sel").forEach(t => t.classList.remove("sel"));
+  document.getElementById("msg").style.display = "none";
+  document.getElementById("submit-btn").disabled = false;
+  document.getElementById("submit-btn").textContent = "Guardar estrategia →";
+}
+</script>
+</body>
+</html>

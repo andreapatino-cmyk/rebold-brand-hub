@@ -170,7 +170,19 @@ class KlaviyoClient:
         return data.get("data", [])
 
 
-def generate_optimizations(brand_name, category, campaigns, flows):
+def read_brand_strategy(brand_key):
+    """Lee el archivo de estrategia de la marca si existe"""
+    strategy_path = os.path.join(os.path.dirname(__file__), "strategy", f"{brand_key}_strategy.md")
+    try:
+        if os.path.exists(strategy_path):
+            with open(strategy_path, "r", encoding="utf-8") as f:
+                return f.read()
+    except Exception:
+        pass
+    return ""
+
+
+def generate_optimizations(brand_name, category, campaigns, flows, brand_key=""):
     use_camps = [c for c in campaigns if c.get("open_rate", 0) > 0 or c.get("recipients", 0) > 0]
     if not use_camps:
         use_camps = campaigns
@@ -189,6 +201,8 @@ def generate_optimizations(brand_name, category, campaigns, flows):
     zero_flows = [f for f in flows if f.get("recipients", 0) > 0 and f.get("conv_rate", 0) == 0]
     top_flows = sorted(flows, key=lambda x: x["conv_value"], reverse=True)[:3]
     date = datetime.utcnow().strftime("%d/%m/%Y")
+
+    strategy = read_brand_strategy(brand_key)
 
     lines = []
     lines.append(f"ANALISIS DE EMAIL MARKETING — {brand_name.upper()}")
@@ -221,8 +235,11 @@ def generate_optimizations(brand_name, category, campaigns, flows):
         lines.append(f"\n  {accion}. MEJORAR TASA DE CLICS ({avg_click*100:.2f}% vs objetivo 1.5%)")
         lines.append(f"     Accion: En la proxima campana, A/B testear el CTA principal.")
         lines.append(f"     Version A: CTA generico actual")
-        lines.append(f"     Version B: CTA especifico con producto y descuento")
-        lines.append(f"     Ejemplo: 'Ver oferta' → 'Comprar [producto] con 15% OFF'")
+        lines.append(f"     Version B: CTA especifico con producto")
+        if strategy and "15%" in strategy:
+            lines.append(f"     Nota: respetar escala de descuentos definida en la estrategia de la marca.")
+        else:
+            lines.append(f"     Ejemplo: 'Ver oferta' → 'Comprar [producto] ahora'")
         lines.append(f"     Klaviyo > Campaigns > Create > A/B Test > Content")
         accion += 1
 
@@ -279,6 +296,11 @@ def generate_optimizations(brand_name, category, campaigns, flows):
     if top_flows:
         lines.append(f"     Flujo con mejor RPR: \"{top_flows[0]['name']}\" (${top_flows[0]['rpr']:.2f})")
 
+    if strategy:
+        lines.append(f"\n6. CONTEXTO ESTRATEGICO DE LA MARCA")
+        lines.append(f"     Este analisis incorpora las reglas de estrategia definidas para {brand_name}.")
+        lines.append(f"     Para actualizar la estrategia, editar el archivo strategy/{brand_key}_strategy.md en el repositorio.")
+
     return "\n".join(lines)
 
 
@@ -287,7 +309,7 @@ def fetch_brand_data(brand_config):
     client = KlaviyoClient(brand_config["api_key"])
 
     end = datetime.utcnow()
-    start = end - timedelta(days=90)
+    start = end - timedelta(days=91)  # +1 dia para incluir el primer dia del rango
     start_str = start.strftime("%Y-%m-%dT00:00:00+00:00")
     end_str = end.strftime("%Y-%m-%dT23:59:59+00:00")
 
@@ -338,13 +360,33 @@ def fetch_brand_data(brand_config):
     flows = []
     if conv_metric_id and flows_raw:
         flow_results = client.get_flow_values(conv_metric_id, start_str, end_str)
+        # Acumular stats por flow_id (puede haber multiples mensajes por flujo)
         flow_stats = {}
         for result in flow_results:
             groupings = result.get("groupings", {})
             stats = result.get("statistics", {})
             fid = groupings.get("flow_id", "")
-            if fid and fid not in flow_stats:
-                flow_stats[fid] = stats
+            if not fid:
+                continue
+            if fid not in flow_stats:
+                flow_stats[fid] = {
+                    "conversion_value": 0,
+                    "recipients": 0,
+                    "opens_unique": 0,
+                    "clicks_unique": 0,
+                    "conversion_uniques": 0,
+                }
+            # Acumular valores numericos
+            for k in ["conversion_value", "recipients", "opens_unique", "clicks_unique", "conversion_uniques"]:
+                flow_stats[fid][k] += float(stats.get(k) or 0)
+        # Calcular tasas correctas despues de acumular
+        for fid, s in flow_stats.items():
+            rec = s["recipients"]
+            s["open_rate"] = s["opens_unique"] / rec if rec > 0 else 0
+            s["click_rate"] = s["clicks_unique"] / rec if rec > 0 else 0
+            s["conv_rate"] = s["conversion_uniques"] / rec if rec > 0 else 0
+            s["revenue_per_recipient"] = s["conversion_value"] / rec if rec > 0 else 0
+
         for f in flows_raw[:15]:
             fid = f.get("id", "")
             attrs = f.get("attributes", {})
@@ -356,11 +398,13 @@ def fetch_brand_data(brand_config):
                 "status": attrs.get("status", ""),
                 "open_rate": float(stats.get("open_rate") or 0),
                 "click_rate": float(stats.get("click_rate") or 0),
-                "conv_rate": float(stats.get("conversion_rate") or 0),
+                "conv_rate": float(stats.get("conv_rate") or 0),
                 "conv_value": float(stats.get("conversion_value") or 0),
                 "rpr": float(stats.get("revenue_per_recipient") or 0),
                 "recipients": int(stats.get("recipients") or 0),
             })
+        total_flow_rev_check = sum(f["conv_value"] for f in flows)
+        print(f"  Revenue flujos: ${total_flow_rev_check:,.0f}")
 
     sent = [c for c in campaigns if c.get("recipients", 0) > 0]
     total_camp_rev = sum(c["conv_value"] for c in sent)
@@ -370,7 +414,7 @@ def fetch_brand_data(brand_config):
     avg_conv = sum(c["conv_rate"] for c in sent) / max(len(sent), 1)
 
     print(f"  Generando optimizaciones con IA...")
-    optimizations = generate_optimizations(brand_config["name"], brand_config["category"], campaigns, flows)
+    optimizations = generate_optimizations(brand_config["name"], brand_config["category"], campaigns, flows, brand_config["brand_key"])
     print(f"  Optimizaciones: {len(optimizations)} chars")
 
     return {
@@ -550,10 +594,11 @@ function render(){
   if(camps.length){
     camps.forEach(function(c){
       var nd=!c.recipients;
-      campsHTML+="<tr><td><div class=\\"cn\\">"+c.name+"</div><div style=\\"font-size:10px;color:var(--tx3)\\">"+c.date+" &middot; "+c.status+"</div></td>";
+      campsHTML+="<tr><td><div class=\\"cn\\">"+c.name+"</div><div style=\\"font-size:10px;color:var(--tx3)\\">"+c.date+" &middot; "+(c.recipients?c.recipients.toLocaleString()+" enviados":"--")+"</div></td>";
       campsHTML+="<td>"+(nd?"--":"<span class=\\"pill "+pc(c.open_rate,.65,.4)+"\\">"+fmtP(c.open_rate)+"</span>")+"</td>";
       campsHTML+="<td>"+(nd?"--":"<span class=\\"pill "+pc(c.click_rate,.005,.002)+"\\">"+fmtP(c.click_rate)+"</span>")+"</td>";
-      campsHTML+="<td style=\\"font-weight:600;color:var(--tx)\\">"+fmtU(c.conv_value)+"</td></tr>";
+      campsHTML+="<td style=\\"font-weight:600;color:var(--tx)\\">"+fmtU(c.conv_value)+"</td>";
+      campsHTML+="<td style=\\"color:var(--tx3)\\">"+fmtU(c.rpr)+"</td></tr>";
     });
   }else{campsHTML="<tr><td colspan=\\"4\\" style=\\"text-align:center;color:var(--tx3);padding:20px\\">Sin campanas en el periodo</td></tr>";}
   var bestHTML="",worstHTML="";
@@ -581,7 +626,7 @@ function render(){
     "<div class=\\"ins\\"><strong>Resumen:</strong> Revenue: <strong>"+fmtU(totalRev)+"</strong> | Apertura: <strong>"+fmtP(avgOr)+"</strong> | "+wd.length+" campanas y "+ALL_FLOWS.length+" flujos.</div>"+
     "<div class=\\"two\\">"+
     "<div class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">Campanas</div><div style=\\"font-size:11px;color:var(--tx3)\\">"+camps.length+" campanas</div></div>"+
-    "<table class=\\"tbl\\"><thead><tr><th>Campana</th><th>Apertura</th><th>Clics</th><th>Revenue</th></tr></thead><tbody>"+campsHTML+"</tbody></table></div>"+
+    "<table class=\\"tbl\\"><thead><tr><th>Campana</th><th>Apertura</th><th>Clics</th><th>Revenue</th><th>RPR</th></tr></thead><tbody>"+campsHTML+"</tbody></table></div>"+
     "<div>"+bestHTML+worstHTML+"</div></div>";
   var fHTML="";
   ALL_FLOWS.forEach(function(f){

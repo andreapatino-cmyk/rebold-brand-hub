@@ -19,6 +19,7 @@ BRANDS = {
         "conversion_metric_id": os.environ.get("GRANITE_METRIC_ID", "T3ZNfY"),
         "output_file": "granite_dashboard.html",
         "brand_key": "granite",
+        "shopify_domain": os.environ.get("GRANITE_SHOPIFY_DOMAIN", ""),
     },
     "ayoba": {
         "name": "Ayoba",
@@ -30,6 +31,7 @@ BRANDS = {
         "conversion_metric_id": os.environ.get("AYOBA_METRIC_ID", "Q8VsyA"),
         "output_file": "ayoba_dashboard.html",
         "brand_key": "ayoba",
+        "shopify_domain": os.environ.get("AYOBA_SHOPIFY_DOMAIN", ""),
     },
     "brooklyn": {
         "name": "Brooklyn Biltong",
@@ -41,6 +43,7 @@ BRANDS = {
         "conversion_metric_id": os.environ.get("BROOKLYN_METRIC_ID", "VDmt66"),
         "output_file": "brooklyn_dashboard.html",
         "brand_key": "brooklyn",
+        "shopify_domain": os.environ.get("BROOKLYN_SHOPIFY_DOMAIN", ""),
     },
     "beg": {
         "name": "Beg & Barker",
@@ -52,6 +55,7 @@ BRANDS = {
         "conversion_metric_id": os.environ.get("BEG_METRIC_ID", "SJAjCL"),
         "output_file": "beg_dashboard.html",
         "brand_key": "beg",
+        "shopify_domain": os.environ.get("BEG_SHOPIFY_DOMAIN", ""),
     },
 }
 
@@ -123,9 +127,17 @@ Por favor lee y devuelve SOLO un JSON con estos datos de los ultimos 30 dias:
     "new_subscribers_prev_30d": <numero>,
     "total_active": <numero>
   }},
-  "real_open_rate": <numero entre 0 y 1, excluyendo Apple Mail>
+  "real_open_rate": <numero entre 0 y 1, excluyendo Apple Mail>,
+  "campaign_segments": [
+    {{
+      "campaign_name": <nombre de la campana>,
+      "segment_name": <nombre del segmento o lista usado>,
+      "recipients": <numero de destinatarios>
+    }}
+  ]
 }}
 
+Incluye las ultimas 10 campanas en campaign_segments.
 Si un dato no esta disponible, usa null. Devuelve SOLO el JSON, sin texto adicional."""
 
     try:
@@ -176,6 +188,83 @@ Si un dato no esta disponible, usa null. Devuelve SOLO el JSON, sin texto adicio
 
     except Exception as e:
         print(f"  Error datos extendidos: {e}")
+        return {}
+
+
+SHOPIFY_MCP_URL = "https://setup.shopify.com/mcp"
+
+
+def fetch_shopify_data(brand_name, shopify_domain):
+    """
+    Usa Claude API + MCP de Shopify para leer ventas totales de la tienda
+    y calcular el peso del canal email.
+    """
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    shopify_token = os.environ.get(f"{brand_name.upper().replace(' ', '_').replace('&', 'AND')}_SHOPIFY_TOKEN", "")
+
+    if not anthropic_key or not shopify_domain:
+        return {}
+
+    print(f"  Leyendo datos Shopify via Claude + MCP...")
+
+    prompt = f"""Estas conectado a la tienda Shopify de {brand_name} ({shopify_domain}) via MCP.
+Por favor lee y devuelve SOLO un JSON con los datos de los ultimos 30 dias:
+
+{{
+  "total_store_revenue": <ingresos totales de la tienda en USD>,
+  "total_orders": <numero de ordenes>,
+  "avg_order_value": <valor promedio de orden>,
+  "top_products": [
+    {{"name": <nombre>, "revenue": <numero>, "units": <numero>}}
+  ]
+}}
+
+Incluye los top 5 productos por revenue.
+Si un dato no esta disponible, usa null. Devuelve SOLO el JSON, sin texto adicional."""
+
+    try:
+        r = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": anthropic_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "claude-haiku-4-5-20251001",
+                "max_tokens": 1000,
+                "messages": [{"role": "user", "content": prompt}],
+                "mcp_servers": [
+                    {
+                        "type": "url",
+                        "url": SHOPIFY_MCP_URL,
+                        "name": "shopify-mcp",
+                    }
+                ],
+            },
+            timeout=60,
+        )
+
+        if r.ok:
+            content = r.json()
+            text = ""
+            for block in content.get("content", []):
+                if block.get("type") == "text":
+                    text += block.get("text", "")
+            text = text.strip()
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+            text = text.strip()
+            data = json.loads(text)
+            print(f"  Shopify OK: total=${data.get('total_store_revenue', 0):,.0f}")
+            return data
+        else:
+            print(f"  Error Shopify {r.status_code}: {r.text[:200]}")
+            return {}
+    except Exception as e:
+        print(f"  Error Shopify: {e}")
         return {}
 
 
@@ -667,8 +756,13 @@ def fetch_brand_data(brand_config):
                     "rpr": float(stats.get("revenue_per_recipient") or 0),
                 })
 
-    # Datos extendidos via Claude + MCP
+    # Datos extendidos via Claude + MCP Klaviyo
     extended = fetch_extended_klaviyo_data(brand_config["name"], brand_config["api_key"])
+
+    # Datos de Shopify via Claude + MCP Shopify
+    shopify_data = {}
+    if brand_config.get("shopify_domain"):
+        shopify_data = fetch_shopify_data(brand_config["name"], brand_config["shopify_domain"])
 
     print(f"  Generando optimizaciones...")
     strategy = read_brand_strategy(brand_config["brand_key"])
@@ -719,6 +813,7 @@ def fetch_brand_data(brand_config):
         },
         "generated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
         "extended": extended,
+        "shopify": shopify_data,
     }
 
 
@@ -739,6 +834,7 @@ def generate_html(data):
     proposals_json = json.dumps(data.get("proposal_evals", []), ensure_ascii=False)
     prev_kpis_json = json.dumps(data.get("prev_kpis", {}), ensure_ascii=False)
     extended_json = json.dumps(data.get("extended", {}), ensure_ascii=False)
+    shopify_json = json.dumps(data.get("shopify", {}), ensure_ascii=False)
 
     p = []
     p.append('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">')
@@ -834,6 +930,7 @@ def generate_html(data):
     p.append(f'var PROPOSALS={proposals_json};')
     p.append(f'var PREV_KPIS={prev_kpis_json};')
     p.append(f'var EXTENDED={extended_json};')
+    p.append(f'var SHOPIFY={shopify_json};')
     p.append('''
 var df=null,dt=null,optTxt="",fluTxt="",selFlu="";
 function fmt8(d){return d.toISOString().split("T")[0]}
@@ -908,7 +1005,42 @@ function renderSalud(){
     html+="</div></div></div>";
   }
 
-  html+="<div style=\\"margin-top:12px;font-size:11px;color:var(--tx3)\\">Datos leidos via Claude + MCP Klaviyo · "+GENERATED+"</div>";
+  // Shopify — ventas totales y peso del email
+  if(SHOPIFY.total_store_revenue!=null){
+    var emailRev=(PREV_KPIS.total_revenue||0)+(EXTENDED.sms&&EXTENDED.sms.total_revenue||0);
+    var emailShare=SHOPIFY.total_store_revenue>0?(totalRev/SHOPIFY.total_store_revenue*100):0;
+    html+="<div class=\\"card\\" style=\\"margin-bottom:14px\\"><div class=\\"ch\\"><div class=\\"ct\\">Ventas totales tienda vs email</div></div><div class=\\"cb\\">";
+    html+="<div style=\\"display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px\\">";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Ventas totales tienda</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+fmtU(SHOPIFY.total_store_revenue)+"</div></div>";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Revenue email</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700;color:var(--ac)\\">"+fmtU(totalRev)+"</div></div>";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Peso del email</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700;color:var(--ac)\\">"+emailShare.toFixed(1)+"%</div></div>";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Ordenes totales</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(SHOPIFY.total_orders||0).toLocaleString()+"</div></div>";
+    html+="</div>";
+    if(SHOPIFY.top_products&&SHOPIFY.top_products.length){
+      html+="<div style=\\"font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px\\">Top productos</div>";
+      html+="<table style=\\"width:100%;border-collapse:collapse\\">";
+      SHOPIFY.top_products.forEach(function(p,i){
+        html+="<tr style=\\"border-bottom:1px solid var(--b)\\"><td style=\\"padding:7px 0;font-size:12px;color:var(--tx)\\">"+(i+1)+". "+p.name+"</td>";
+        html+="<td style=\\"padding:7px 0;font-size:12px;font-weight:600;color:var(--tx);text-align:right\\">"+fmtU(p.revenue)+"</td>";
+        html+="<td style=\\"padding:7px 0;font-size:12px;color:var(--tx3);text-align:right\\">"+(p.units||0)+" uds</td></tr>";
+      });
+      html+="</table>";
+    }
+    html+="</div></div>";
+  }
+
+  // Audiencia por envio
+  var segs=EXTENDED.campaign_segments||[];
+  if(segs.length){
+    html+="<div class=\\"card\\" style=\\"margin-bottom:14px\\"><div class=\\"ch\\"><div class=\\"ct\\">Audiencia por campana</div></div>";
+    html+="<table class=\\"tbl\\"><thead><tr><th>Campana</th><th>Segmento</th><th>Destinatarios</th></tr></thead><tbody>";
+    segs.forEach(function(s){
+      html+="<tr><td class=\\"cn\\">"+s.campaign_name+"</td><td style=\\"font-size:12px;color:var(--tx2)\\">"+s.segment_name+"</td><td style=\\"font-size:12px;color:var(--tx)\\">"+( s.recipients?s.recipients.toLocaleString():"--")+"</td></tr>";
+    });
+    html+="</tbody></table></div>";
+  }
+
+  html+="<div style=\\"margin-top:12px;font-size:11px;color:var(--tx3)\\">Datos leidos via Claude + MCP Klaviyo/Shopify · "+GENERATED+"</div>";
   html+="</div>";
   el.innerHTML=html;
 }

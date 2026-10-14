@@ -44,6 +44,8 @@ jobs:
         run: |
           cd dashboards
           python generate_dashboards.py
+          cp strategy_update.html output/
+          cp -r strategy output/strategy
 
       - name: Configurar Pages
         uses: actions/configure-pages@v4

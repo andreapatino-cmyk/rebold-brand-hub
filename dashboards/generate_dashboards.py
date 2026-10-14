@@ -83,6 +83,101 @@ FLUJOS_POR_MARCA = {
 REVISION = "2025-01-15"
 BASE_URL = "https://a.klaviyo.com/api"
 
+# URL del MCP de Klaviyo (mismo que usa Claude en el chat)
+KLAVIYO_MCP_URL = "https://mcp.klaviyo.com/mcp"
+
+
+def fetch_extended_klaviyo_data(brand_name, api_key):
+    """
+    Usa Claude API + MCP de Klaviyo para leer datos que la API publica no expone:
+    - Entregabilidad: rebote, bajas, spam, puntaje
+    - Canal SMS: revenue, RPR
+    - Crecimiento de lista: altas por formulario
+    - Aperturas reales (sin Apple Mail)
+    """
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not anthropic_key:
+        print(f"  ANTHROPIC_API_KEY no configurada — saltando datos extendidos")
+        return {}
+
+    print(f"  Leyendo datos extendidos via Claude + MCP Klaviyo...")
+
+    prompt = f"""Estas conectado a la cuenta de Klaviyo de {brand_name} via MCP.
+Por favor lee y devuelve SOLO un JSON con estos datos de los ultimos 30 dias:
+
+{{
+  "deliverability": {{
+    "bounce_rate": <numero entre 0 y 1>,
+    "unsubscribe_rate": <numero entre 0 y 1>,
+    "spam_rate": <numero entre 0 y 1>,
+    "klaviyo_score": <numero entre 0 y 100>
+  }},
+  "sms": {{
+    "total_revenue": <numero>,
+    "recipients": <numero>,
+    "rpr": <numero>,
+    "campaigns_sent": <numero>
+  }},
+  "list_growth": {{
+    "new_subscribers_30d": <numero>,
+    "new_subscribers_prev_30d": <numero>,
+    "total_active": <numero>
+  }},
+  "real_open_rate": <numero entre 0 y 1, excluyendo Apple Mail>
+}}
+
+Si un dato no esta disponible, usa null. Devuelve SOLO el JSON, sin texto adicional."""
+
+    try:
+        r = requests.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": anthropic_key,
+                "anthropic-version": "2023-06-01",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "claude-haiku-4-5-20251001",
+                "max_tokens": 1000,
+                "messages": [{"role": "user", "content": prompt}],
+                "mcp_servers": [
+                    {
+                        "type": "url",
+                        "url": KLAVIYO_MCP_URL,
+                        "name": "klaviyo-mcp",
+                        "authorization_token": api_key,
+                    }
+                ],
+            },
+            timeout=60,
+        )
+
+        if r.ok:
+            content = r.json()
+            text = ""
+            for block in content.get("content", []):
+                if block.get("type") == "text":
+                    text += block.get("text", "")
+
+            # Limpiar y parsear JSON
+            text = text.strip()
+            if text.startswith("```"):
+                text = text.split("```")[1]
+                if text.startswith("json"):
+                    text = text[4:]
+            text = text.strip()
+
+            data = json.loads(text)
+            print(f"  Datos extendidos OK: bounce={data.get('deliverability', {}).get('bounce_rate')}, score={data.get('deliverability', {}).get('klaviyo_score')}")
+            return data
+        else:
+            print(f"  Error Claude API {r.status_code}: {r.text[:200]}")
+            return {}
+
+    except Exception as e:
+        print(f"  Error datos extendidos: {e}")
+        return {}
+
 
 class KlaviyoClient:
     def __init__(self, api_key):
@@ -414,9 +509,15 @@ def fetch_brand_data(brand_config):
     client = KlaviyoClient(brand_config["api_key"])
 
     end = datetime.utcnow()
-    start = end - timedelta(days=91)  # +1 dia para incluir el primer dia del rango
+    start = end - timedelta(days=91)
     start_str = start.strftime("%Y-%m-%dT00:00:00+00:00")
     end_str = end.strftime("%Y-%m-%dT23:59:59+00:00")
+
+    # Periodo anterior (mismo rango, 91 dias antes)
+    prev_end = start - timedelta(days=1)
+    prev_start = prev_end - timedelta(days=91)
+    prev_start_str = prev_start.strftime("%Y-%m-%dT00:00:00+00:00")
+    prev_end_str = prev_end.strftime("%Y-%m-%dT23:59:59+00:00")
 
     conv_metric_id = brand_config.get("conversion_metric_id") or ""
     if not conv_metric_id:
@@ -518,6 +619,57 @@ def fetch_brand_data(brand_config):
     avg_click = sum(c["click_rate"] for c in sent) / max(len(sent), 1)
     avg_conv = sum(c["conv_rate"] for c in sent) / max(len(sent), 1)
 
+    # Periodo anterior para comparacion
+    prev_camp_rev = 0
+    prev_flow_rev = 0
+    prev_avg_open = 0
+    prev_avg_click = 0
+    if conv_metric_id:
+        print(f"  Leyendo periodo anterior...")
+        prev_results = client.get_campaign_values(conv_metric_id, prev_start_str, prev_end_str)
+        prev_sent = [r for r in prev_results if float(r.get("statistics", {}).get("recipients") or 0) > 0]
+        prev_camp_rev = sum(float(r.get("statistics", {}).get("conversion_value") or 0) for r in prev_sent)
+        if prev_sent:
+            prev_avg_open = sum(float(r.get("statistics", {}).get("open_rate") or 0) for r in prev_sent) / len(prev_sent)
+            prev_avg_click = sum(float(r.get("statistics", {}).get("click_rate") or 0) for r in prev_sent) / len(prev_sent)
+        prev_flow_results = client.get_flow_values(conv_metric_id, prev_start_str, prev_end_str)
+        prev_flow_stats = {}
+        for result in prev_flow_results:
+            groupings = result.get("groupings", {})
+            stats = result.get("statistics", {})
+            fid = groupings.get("flow_id", "")
+            if fid:
+                prev_flow_stats[fid] = prev_flow_stats.get(fid, 0) + float(stats.get("conversion_value") or 0)
+        prev_flow_rev = sum(prev_flow_stats.values())
+        print(f"  Periodo anterior: campanas ${prev_camp_rev:,.0f} | flujos ${prev_flow_rev:,.0f}")
+
+    # Detalle de emails por flow
+    flow_details = {}
+    for f in flows:
+        fid = f["id"]
+        flow_details[fid] = []
+    # Obtener desglose por flow_message_id
+    if conv_metric_id and flows:
+        detail_results = client.get_flow_values(conv_metric_id, start_str, end_str)
+        for result in detail_results:
+            groupings = result.get("groupings", {})
+            stats = result.get("statistics", {})
+            fid = groupings.get("flow_id", "")
+            mid = groupings.get("flow_message_id", "")
+            if fid in flow_details and mid:
+                flow_details[fid].append({
+                    "message_id": mid,
+                    "recipients": int(stats.get("recipients") or 0),
+                    "open_rate": float(stats.get("open_rate") or 0),
+                    "click_rate": float(stats.get("click_rate") or 0),
+                    "conv_rate": float(stats.get("conversion_rate") or 0),
+                    "conv_value": float(stats.get("conversion_value") or 0),
+                    "rpr": float(stats.get("revenue_per_recipient") or 0),
+                })
+
+    # Datos extendidos via Claude + MCP
+    extended = fetch_extended_klaviyo_data(brand_config["name"], brand_config["api_key"])
+
     print(f"  Generando optimizaciones...")
     strategy = read_brand_strategy(brand_config["brand_key"])
     optimizations = generate_optimizations(brand_config["name"], brand_config["category"], campaigns, flows, brand_config["brand_key"])
@@ -547,6 +699,7 @@ def fetch_brand_data(brand_config):
         "brand": brand_config,
         "campaigns": campaigns,
         "flows": flows,
+        "flow_details": flow_details,
         "optimizations": optimizations,
         "proposal_evals": proposal_evals,
         "kpis": {
@@ -557,7 +710,15 @@ def fetch_brand_data(brand_config):
             "avg_click_rate": avg_click,
             "avg_conv_rate": avg_conv,
         },
+        "prev_kpis": {
+            "total_revenue": prev_camp_rev + prev_flow_rev,
+            "campaign_revenue": prev_camp_rev,
+            "flow_revenue": prev_flow_rev,
+            "avg_open_rate": prev_avg_open,
+            "avg_click_rate": prev_avg_click,
+        },
         "generated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        "extended": extended,
     }
 
 
@@ -572,9 +733,12 @@ def generate_html(data):
     generated_at = data["generated_at"]
     campaigns_json = json.dumps(data["campaigns"], ensure_ascii=False)
     flows_json = json.dumps(data["flows"], ensure_ascii=False)
+    flow_details_json = json.dumps(data.get("flow_details", {}), ensure_ascii=False)
     flujos_json = json.dumps(FLUJOS_POR_MARCA.get(brand_key, []), ensure_ascii=False)
     optimizations_json = json.dumps(data.get("optimizations", ""), ensure_ascii=False)
     proposals_json = json.dumps(data.get("proposal_evals", []), ensure_ascii=False)
+    prev_kpis_json = json.dumps(data.get("prev_kpis", {}), ensure_ascii=False)
+    extended_json = json.dumps(data.get("extended", {}), ensure_ascii=False)
 
     p = []
     p.append('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">')
@@ -639,8 +803,9 @@ def generate_html(data):
     p.append('<div class="tab" onclick="showT(\'flujos\',this)">Flujos</div>')
     p.append('<div class="tab" onclick="showT(\'optimizaciones\',this)">Optimizaciones IA</div>')
     p.append('<div class="tab" onclick="showT(\'propuestas\',this)">Propuestas</div>')
+    p.append('<div class="tab" onclick="showT(\'salud\',this)">Salud de cuenta</div>')
     p.append('</div>')
-    p.append('<div class="main"><div id="t-resultados"></div><div id="t-flujos" style="display:none"></div><div id="t-optimizaciones" style="display:none"></div><div id="t-propuestas" style="display:none"></div></div>')
+    p.append('<div class="main"><div id="t-resultados"></div><div id="t-flujos" style="display:none"></div><div id="t-optimizaciones" style="display:none"></div><div id="t-propuestas" style="display:none"></div><div id="t-salud" style="display:none"></div></div>')
     p.append('<div class="modal-ov" id="m-opt"><div class="modal">')
     p.append(f'<div class="mh"><div class="mt">&#9889; Optimizacion IA — {name}</div><button class="cbtn" onclick="cm(\'m-opt\')">&#10005;</button></div>')
     p.append('<div class="mc" id="m-opt-body"></div>')
@@ -661,11 +826,14 @@ def generate_html(data):
     p.append('<script>')
     p.append(f'var ALL_CAMPS={campaigns_json};')
     p.append(f'var ALL_FLOWS={flows_json};')
+    p.append(f'var FLOW_DETAILS={flow_details_json};')
     p.append(f'var FLUJOS={flujos_json};')
     p.append(f'var BRAND_NAME="{name}";')
     p.append(f'var GENERATED="{generated_at}";')
     p.append(f'var OPTIMIZATIONS={optimizations_json};')
     p.append(f'var PROPOSALS={proposals_json};')
+    p.append(f'var PREV_KPIS={prev_kpis_json};')
+    p.append(f'var EXTENDED={extended_json};')
     p.append('''
 var df=null,dt=null,optTxt="",fluTxt="",selFlu="";
 function fmt8(d){return d.toISOString().split("T")[0]}
@@ -674,11 +842,75 @@ function fmtP(n){return(Number(n||0)*100).toFixed(1)+"%"}
 function pc(v,h,m){return v>=h?"ph":v>=m?"pm":"pl"}
 function cm(id){document.getElementById(id).classList.remove("open")}
 function showT(id,el){
-  ["resultados","flujos","optimizaciones","propuestas"].forEach(function(t){document.getElementById("t-"+t).style.display="none"});
+  ["resultados","flujos","optimizaciones","propuestas","salud"].forEach(function(t){document.getElementById("t-"+t).style.display="none"});
   document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active")});
   document.getElementById("t-"+id).style.display="block";
   el.classList.add("active");
   if(id==="propuestas")renderPropuestas();
+  if(id==="salud")renderSalud();
+}
+function renderSalud(){
+  var el=document.getElementById("t-salud");
+  var d=EXTENDED.deliverability||{};
+  var sms=EXTENDED.sms||{};
+  var lg=EXTENDED.list_growth||{};
+  var realOr=EXTENDED.real_open_rate;
+  var noData=Object.keys(EXTENDED).length===0;
+
+  if(noData){
+    el.innerHTML="<div style=\\"margin-top:18px;padding:40px;text-align:center;color:var(--tx3)\\"><div style=\\"font-size:32px;margin-bottom:12px\\">📊</div><div style=\\"font-size:15px;font-weight:600;color:var(--tx);margin-bottom:8px\\">Datos de salud no disponibles</div><div style=\\"font-size:13px\\">Requiere ANTHROPIC_API_KEY configurada para leer datos extendidos de Klaviyo.</div></div>";
+    return;
+  }
+
+  var score=d.klaviyo_score;
+  var scoreColor=score>=80?"var(--ac)":score>=60?"var(--amb)":"var(--red)";
+  var bounceColor=(d.bounce_rate||0)>0.04?"var(--red)":(d.bounce_rate||0)>0.02?"var(--amb)":"var(--ac)";
+  var unsubColor=(d.unsubscribe_rate||0)>0.003?"var(--red)":(d.unsubscribe_rate||0)>0.001?"var(--amb)":"var(--ac)";
+
+  var html="<div style=\\"margin-top:18px\\">";
+
+  // Puntaje Klaviyo
+  if(score!=null){
+    html+="<div style=\\"background:var(--s1);border:1px solid var(--b);border-radius:11px;padding:20px;margin-bottom:14px;display:flex;align-items:center;gap:20px\\">";
+    html+="<div style=\\"font-family:Space Grotesk,sans-serif;font-size:48px;font-weight:700;color:"+scoreColor+"\\">"+score+"</div>";
+    html+="<div><div style=\\"font-size:12px;color:var(--tx3);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px\\">Puntaje Klaviyo</div>";
+    html+="<div style=\\"font-size:13px;color:var(--tx2)\\">"+( score>=80?"Bueno — mantener buenas practicas de envio":score>=60?"Regular — revisar lista y segmentacion":"Critico — accion urgente requerida")+"</div></div></div>";
+  }
+
+  // Grid de entregabilidad
+  html+="<div style=\\"display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px\\">";
+  html+="<div class=\\"kc r\\"><div class=\\"kl\\">Tasa de rebote</div><div class=\\"kv\\" style=\\"color:"+bounceColor+"\\">"+((d.bounce_rate||0)*100).toFixed(2)+"%</div><div class=\\"ks\\">Objetivo <2%</div></div>";
+  html+="<div class=\\"kc a\\"><div class=\\"kl\\">Tasa de baja</div><div class=\\"kv\\" style=\\"color:"+unsubColor+"\\">"+((d.unsubscribe_rate||0)*100).toFixed(3)+"%</div><div class=\\"ks\\">Objetivo <0.3%</div></div>";
+  html+="<div class=\\"kc a\\"><div class=\\"kl\\">Spam rate</div><div class=\\"kv\\">"+((d.spam_rate||0)*100).toFixed(3)+"%</div><div class=\\"ks\\">Objetivo <0.08%</div></div>";
+  html+="<div class=\\"kc g\\"><div class=\\"kl\\">Apertura real</div><div class=\\"kv\\">"+( realOr!=null?((realOr||0)*100).toFixed(1)+"%":"N/D")+"</div><div class=\\"ks\\">Sin Apple Mail</div></div>";
+  html+="</div>";
+
+  // SMS
+  if(sms.total_revenue!=null||sms.recipients!=null){
+    html+="<div class=\\"card\\" style=\\"margin-bottom:14px\\"><div class=\\"ch\\"><div class=\\"ct\\">Canal SMS</div></div><div class=\\"cb\\">";
+    html+="<div style=\\"display:grid;grid-template-columns:repeat(4,1fr);gap:12px\\">";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Revenue SMS</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+fmtU(sms.total_revenue||0)+"</div></div>";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Destinatarios</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(sms.recipients||0).toLocaleString()+"</div></div>";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">RPR SMS</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700;color:var(--ac)\\">"+fmtU(sms.rpr||0)+"</div></div>";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Campanas enviadas</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(sms.campaigns_sent||0)+"</div></div>";
+    html+="</div></div></div>";
+  }
+
+  // Crecimiento de lista
+  if(lg.new_subscribers_30d!=null){
+    var growthDelta=lg.new_subscribers_prev_30d>0?((lg.new_subscribers_30d-lg.new_subscribers_prev_30d)/lg.new_subscribers_prev_30d*100):0;
+    var growthColor=growthDelta>=0?"var(--ac)":"var(--red)";
+    html+="<div class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">Crecimiento de lista</div></div><div class=\\"cb\\">";
+    html+="<div style=\\"display:grid;grid-template-columns:repeat(3,1fr);gap:12px\\">";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Altas ultimos 30 dias</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(lg.new_subscribers_30d||0).toLocaleString()+"<span style=\\"font-size:13px;color:"+growthColor+"\\"> "+(growthDelta>=0?"+":"")+growthDelta.toFixed(1)+"%</span></div></div>";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Altas periodo anterior</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(lg.new_subscribers_prev_30d||0).toLocaleString()+"</div></div>";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Total activos</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(lg.total_active||0).toLocaleString()+"</div></div>";
+    html+="</div></div></div>";
+  }
+
+  html+="<div style=\\"margin-top:12px;font-size:11px;color:var(--tx3)\\">Datos leidos via Claude + MCP Klaviyo · "+GENERATED+"</div>";
+  html+="</div>";
+  el.innerHTML=html;
 }
 function renderPropuestas(){
   var el=document.getElementById("t-propuestas");
@@ -795,33 +1027,63 @@ function render(){
     worstHTML+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Apertura</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700\\">"+fmtP(worst.open_rate)+"</div></div>";
     worstHTML+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Conv.</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:18px;font-weight:700\\">"+fmtP(worst.conv_rate)+"</div></div></div></div></div>";
   }
+  function fmtDelta(curr,prev){
+    if(!prev||prev===0)return "";
+    var d=((curr-prev)/prev*100);
+    var col=d>=0?"var(--ac)":"var(--red)";
+    return "<span style=\\"font-size:11px;color:"+col+"\\"> "+(d>=0?"+":"")+d.toFixed(1)+"%</span>";
+  }
+  var prevRev=PREV_KPIS.total_revenue||0;
+  var prevOr=PREV_KPIS.avg_open_rate||0;
+  var prevCr=PREV_KPIS.avg_click_rate||0;
+
   document.getElementById("t-resultados").innerHTML=
     "<div class=\\"kpig\\" style=\\"margin-top:18px\\">"+
-    "<div class=\\"kc g\\"><div class=\\"kl\\">Revenue total</div><div class=\\"kv\\">"+fmtU(totalRev)+"</div><div class=\\"ks\\">Campanas "+fmtU(campRev)+" + Flujos "+fmtU(flowRev)+"</div></div>"+
-    "<div class=\\"kc g\\"><div class=\\"kl\\">Apertura promedio</div><div class=\\"kv\\">"+fmtP(avgOr)+"</div><div class=\\"ks\\">Industria 35-45%</div></div>"+
-    "<div class=\\"kc a\\"><div class=\\"kl\\">Clics promedio</div><div class=\\"kv\\">"+fmtP(avgCr)+"</div><div class=\\"ks\\">"+(avgCr<.015?"Por debajo del objetivo":"En rango")+"</div></div>"+
+    "<div class=\\"kc g\\"><div class=\\"kl\\">Revenue total</div><div class=\\"kv\\">"+fmtU(totalRev)+fmtDelta(totalRev,prevRev)+"</div><div class=\\"ks\\">Campanas "+fmtU(campRev)+" + Flujos "+fmtU(flowRev)+"</div></div>"+
+    "<div class=\\"kc g\\"><div class=\\"kl\\">Apertura promedio</div><div class=\\"kv\\">"+fmtP(avgOr)+fmtDelta(avgOr,prevOr)+"</div><div class=\\"ks\\">Periodo anterior: "+fmtP(prevOr)+"</div></div>"+
+    "<div class=\\"kc a\\"><div class=\\"kl\\">Clics promedio</div><div class=\\"kv\\">"+fmtP(avgCr)+fmtDelta(avgCr,prevCr)+"</div><div class=\\"ks\\">Periodo anterior: "+fmtP(prevCr)+"</div></div>"+
     "<div class=\\"kc b\\"><div class=\\"kl\\">Conversion</div><div class=\\"kv\\">"+fmtP(avgCvr)+"</div><div class=\\"ks\\">"+wd.length+" campanas con datos</div></div>"+
     "</div>"+
-    "<div class=\\"ins\\"><strong>Resumen:</strong> Revenue: <strong>"+fmtU(totalRev)+"</strong> | Apertura: <strong>"+fmtP(avgOr)+"</strong> | "+wd.length+" campanas y "+ALL_FLOWS.length+" flujos.</div>"+
+    "<div class=\\"ins\\"><strong>Resumen:</strong> Revenue: <strong>"+fmtU(totalRev)+"</strong> "+fmtDelta(totalRev,prevRev)+" | Apertura: <strong>"+fmtP(avgOr)+"</strong> | "+wd.length+" campanas y "+ALL_FLOWS.length+" flujos.</div>"+
     "<div class=\\"two\\">"+
     "<div class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">Campanas</div><div style=\\"font-size:11px;color:var(--tx3)\\">"+camps.length+" campanas</div></div>"+
     "<table class=\\"tbl\\"><thead><tr><th>Campana</th><th>Apertura</th><th>Clics</th><th>Revenue</th><th>RPR</th></tr></thead><tbody>"+campsHTML+"</tbody></table></div>"+
     "<div>"+bestHTML+worstHTML+"</div></div>";
+
+  // Tab flujos con detalle por email
   var fHTML="";
   ALL_FLOWS.forEach(function(f){
-    fHTML+="<tr><td class=\\"cn\\">"+f.name+"</td><td style=\\"font-size:11px;color:var(--tx3)\\">"+f.trigger+"</td>";
+    var details=FLOW_DETAILS[f.id]||[];
+    var hasDetails=details.length>1;
+    fHTML+="<tr style=\\"cursor:"+(hasDetails?"pointer":"default")+"\\""+(hasDetails?" onclick=\\"toggleFlowDetail('"+f.id+"')\\"":"")+"><td><div class=\\"cn\\">"+f.name+(hasDetails?" <span style=\\"font-size:10px;color:var(--tx3)\\">▸ "+details.length+" emails</span>":"")+"</div><div style=\\"font-size:10px;color:var(--tx3)\\">"+f.trigger+"</div></td>";
     fHTML+="<td><span class=\\"pill "+pc(f.open_rate,.5,.4)+"\\">"+fmtP(f.open_rate)+"</span></td>";
     fHTML+="<td><span class=\\"pill "+pc(f.conv_rate,.05,.01)+"\\">"+fmtP(f.conv_rate)+"</span></td>";
-    fHTML+="<td style=\\"font-weight:600;color:var(--tx)\\">"+fmtU(f.conv_value)+"</td><td>"+fmtU(f.rpr)+"</td></tr>";
+    fHTML+="<td style=\\"font-weight:600;color:var(--tx)\\">"+fmtU(f.conv_value)+"</td><td>"+fmtU(f.rpr)+"</td><td>"+f.recipients.toLocaleString()+"</td></tr>";
+    if(hasDetails){
+      fHTML+="<tr id=\\"fd-"+f.id+"\\" style=\\"display:none\\"><td colspan=\\"6\\" style=\\"padding:0\\"><table style=\\"width:100%;border-collapse:collapse;background:var(--bg)\\">";
+      fHTML+="<tr style=\\"background:var(--s2)\\"><th style=\\"padding:6px 10px 6px 30px;font-size:10px;color:var(--tx3);text-align:left\\">Email</th><th style=\\"padding:6px 10px;font-size:10px;color:var(--tx3);text-align:left\\">Apertura</th><th style=\\"padding:6px 10px;font-size:10px;color:var(--tx3);text-align:left\\">Conv.</th><th style=\\"padding:6px 10px;font-size:10px;color:var(--tx3);text-align:left\\">Revenue</th><th style=\\"padding:6px 10px;font-size:10px;color:var(--tx3);text-align:left\\">RPR</th></tr>";
+      details.forEach(function(d,i){
+        fHTML+="<tr><td style=\\"padding:6px 10px 6px 30px;font-size:11px;color:var(--tx2)\\">Email "+(i+1)+"</td>";
+        fHTML+="<td style=\\"padding:6px 10px;font-size:11px\\"><span class=\\"pill "+pc(d.open_rate,.5,.4)+"\\">"+fmtP(d.open_rate)+"</span></td>";
+        fHTML+="<td style=\\"padding:6px 10px;font-size:11px\\"><span class=\\"pill "+pc(d.conv_rate,.05,.01)+"\\">"+fmtP(d.conv_rate)+"</span></td>";
+        fHTML+="<td style=\\"padding:6px 10px;font-size:11px;font-weight:600;color:var(--tx)\\">"+fmtU(d.conv_value)+"</td>";
+        fHTML+="<td style=\\"padding:6px 10px;font-size:11px;color:var(--tx3)\\">"+fmtU(d.rpr)+"</td></tr>";
+      });
+      fHTML+="</table></td></tr>";
+    }
   });
   document.getElementById("t-flujos").innerHTML=
-    "<div style=\\"margin-top:18px\\" class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">Flujos activos</div></div>"+
-    "<table class=\\"tbl\\"><thead><tr><th>Flujo</th><th>Trigger</th><th>Apertura</th><th>Conv.</th><th>Revenue</th><th>RPR</th></tr></thead>"+
+    "<div style=\\"margin-top:18px\\" class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">Flujos activos</div><div style=\\"font-size:11px;color:var(--tx3)\\">Clic en flujo para ver detalle por email</div></div>"+
+    "<table class=\\"tbl\\"><thead><tr><th>Flujo</th><th>Apertura</th><th>Conv.</th><th>Revenue</th><th>RPR</th><th>Enviados</th></tr></thead>"+
     "<tbody>"+(fHTML||"<tr><td colspan=\\"6\\" style=\\"text-align:center;color:var(--tx3);padding:20px\\">Sin flujos</td></tr>")+"</tbody></table></div>";
   document.getElementById("t-optimizaciones").innerHTML=
     "<div style=\\"margin-top:18px\\">"+
     "<div style=\\"font-size:11px;color:var(--tx3);margin-bottom:14px;padding:8px 12px;background:var(--s2);border-radius:6px;border:1px solid var(--b)\\">Generado con IA · "+GENERATED+"</div>"+
     "<div style=\\"white-space:pre-wrap;font-size:13px;line-height:1.8;color:var(--tx2);background:var(--s1);border:1px solid var(--b);border-radius:10px;padding:20px\\">"+OPTIMIZATIONS+"</div></div>";
+}
+function toggleFlowDetail(fid){
+  var row=document.getElementById("fd-"+fid);
+  if(row)row.style.display=row.style.display==="none"?"table-row":"none";
 }
 function openOpt(){document.getElementById("m-opt").classList.add("open");optTxt=OPTIMIZATIONS;document.getElementById("m-opt-body").textContent=OPTIMIZATIONS;}
 function openFlujo(){

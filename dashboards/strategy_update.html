@@ -6,10 +6,10 @@
 <title>Rebold — Estrategia semanal</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0D0F0E;--s1:#151918;--s2:#1C201F;--b:#252B29;--ac:#B5F23D;--acd:rgba(181,242,61,.12);--red:#FF4D4D;--redd:rgba(255,77,77,.12);--tx:#E8EDE8;--tx2:#8A9490;--tx3:#5A6460;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+:root{--bg:#0D0F0E;--s1:#151918;--s2:#1C201F;--b:#252B29;--ac:#B5F23D;--acd:rgba(181,242,61,.12);--red:#FF4D4D;--redd:rgba(255,77,77,.12);--amb:#F2A93D;--ambd:rgba(242,169,61,.12);--tx:#E8EDE8;--tx2:#8A9490;--tx3:#5A6460;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 *{box-sizing:inherit;margin:0;padding:0}
 body{background:var(--bg);color:var(--tx);font-family:Inter,sans-serif;font-size:14px;min-height:100vh}
-.topbar{padding:16px 24px;border-bottom:1px solid var(--b);display:flex;align-items:center;justify-content:space-between}
+.topbar{padding:16px 24px;border-bottom:1px solid var(--b);display:flex;align-items:center}
 .logo{font-family:"Space Grotesk",sans-serif;font-size:17px;font-weight:700;color:var(--ac)}
 .logo span{color:var(--tx3);font-weight:400;font-size:12px;margin-left:8px}
 .main{max-width:680px;margin:0 auto;padding:32px 24px}
@@ -25,6 +25,8 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
 .btn{width:100%;padding:13px;background:var(--ac);color:#0D0F0E;font-family:Inter,sans-serif;font-size:14px;font-weight:700;border:none;border-radius:8px;cursor:pointer;transition:all .2s;margin-top:8px}
 .btn:hover{background:#c8ff50}
 .btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-sec{width:100%;padding:11px;background:var(--s2);border:1px solid var(--b);color:var(--tx2);font-family:Inter,sans-serif;font-size:13px;font-weight:600;border-radius:8px;cursor:pointer;transition:all .2s;margin-top:8px}
+.btn-sec:hover{border-color:var(--ac);color:var(--ac)}
 .msg{padding:14px 16px;border-radius:8px;font-size:13px;margin-top:16px;display:none;line-height:1.5}
 .msg.ok{background:var(--acd);border:1px solid rgba(181,242,61,.2);color:var(--ac)}
 .msg.err{background:var(--redd);border:1px solid rgba(255,77,77,.2);color:var(--red)}
@@ -40,6 +42,18 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
 .success-sub{color:var(--tx3);font-size:13px;line-height:1.6}
 .reset-btn{margin-top:24px;padding:10px 24px;background:var(--s2);border:1px solid var(--b);color:var(--tx2);font-family:Inter,sans-serif;font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;transition:all .2s}
 .reset-btn:hover{border-color:var(--ac);color:var(--ac)}
+.prop-card{background:var(--s2);border:1px solid var(--b);border-radius:10px;padding:16px;margin-bottom:12px}
+.prop-card.viable{border-left:4px solid var(--ac)}
+.prop-card.warn{border-left:4px solid var(--amb)}
+.prop-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.prop-card.viable .prop-label{color:var(--ac)}
+.prop-card.warn .prop-label{color:var(--amb)}
+.prop-title{font-size:13px;font-weight:600;color:var(--tx);margin-bottom:8px}
+.prop-rec{font-size:12px;color:var(--tx2);margin-bottom:8px}
+.prop-warn{font-size:11px;color:var(--amb);background:var(--ambd);padding:6px 10px;border-radius:5px;margin-bottom:6px}
+.prop-prompt{background:var(--bg);border-radius:6px;padding:10px;font-size:11px;color:var(--tx2);line-height:1.6;max-height:100px;overflow-y:auto;font-family:monospace;margin-bottom:8px}
+.copy-btn{padding:7px 14px;background:var(--acd);color:var(--ac);border:1px solid rgba(181,242,61,.2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif}
+.copy-btn:hover{background:rgba(181,242,61,.2)}
 </style>
 </head>
 <body>
@@ -60,7 +74,7 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
       <option value="brooklyn">Brooklyn Biltong</option>
       <option value="granite">Granite Nutrition</option>
       <option value="ayoba">Ayoba</option>
-      <option value="beg">Beg & Barker</option>
+      <option value="beg">Beg &amp; Barker</option>
     </select>
   </div>
 
@@ -74,25 +88,25 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
 
   <div class="field">
     <label>Campañas destacadas</label>
-    <textarea id="campaigns_notes" placeholder="Ej: Labor Day Email 2 funcionó muy bien ($2,292). Win-Back Tramo 2 no convirtió porque el botón no aplicaba el código BACK20 — ya corregido el 7 oct."></textarea>
-    <div class="hint">Qué funcionó, qué no, y por qué. El dashboard aprende de estos patrones.</div>
+    <textarea id="campaigns_notes" placeholder="Ej: Labor Day Email 2 funcionó muy bien ($2,292). Win-Back Tramo 2 no convirtió."></textarea>
+    <div class="hint">Qué funcionó, qué no, y por qué.</div>
   </div>
 
   <div class="field">
     <label>Reglas y restricciones de la marca</label>
-    <textarea id="strategy_notes" placeholder="Ej: No usar descuentos mayores a 15% en octubre salvo National Snack Day (20 oct). Evitar emails educativos — bajo CTR. First Purchase Flow acepta solo primeras compras desde el 7 oct."></textarea>
+    <textarea id="strategy_notes" placeholder="Ej: No usar descuentos mayores a 15% en octubre. Evitar emails educativos — bajo CTR."></textarea>
     <div class="hint">Reglas de posicionamiento, escala de descuentos, flujos modificados.</div>
   </div>
 
   <div class="field">
     <label>Alertas o problemas activos</label>
-    <textarea id="alerts" placeholder="Ej: Rebote en 6.04% — prioridad máxima esta semana. Puntaje Klaviyo en 60. Destinatarios cayeron de 8,800 a 2,141 por envío en octubre."></textarea>
+    <textarea id="alerts" placeholder="Ej: Rebote en 6.04% — prioridad máxima. Puntaje Klaviyo en 60."></textarea>
     <div class="hint">Entregabilidad, segmentos con problemas, métricas preocupantes.</div>
   </div>
 
   <div class="field">
     <label>Prioridades esta semana</label>
-    <div class="tag-grid" id="tags">
+    <div class="tag-grid">
       <div class="tag" onclick="this.classList.toggle('sel')">Reducir rebote</div>
       <div class="tag" onclick="this.classList.toggle('sel')">Mejorar entregabilidad</div>
       <div class="tag" onclick="this.classList.toggle('sel')">Aumentar RPR</div>
@@ -106,34 +120,26 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
     </div>
   </div>
 
-
   <hr class="divider">
   <div class="section-title">💡 Propuestas de optimización</div>
 
   <div class="field">
-    <label>¿Qué optimizaciones quieres proponer esta semana?</label>
-    <textarea id="proposals" placeholder="Escribe una propuesta por línea. Ejemplos:&#10;- Probar segmento Win-Back de 45 días&#10;- A/B testear asunto con nombre del producto&#10;- Activar canal SMS para reactivación&#10;- Nuevo flujo de upsell post-compra"></textarea>
-    <div class="hint">El dashboard evaluará cada propuesta contra los datos reales de Klaviyo y generará el prompt para ejecutarla en Claude.</div>
+    <label>¿Qué optimizaciones quieres proponer?</label>
+    <textarea id="proposals" placeholder="Una propuesta por línea. Ejemplos:&#10;Probar flujo Win-Back de 45 días&#10;A/B testear asunto con nombre del producto&#10;Activar canal SMS para reactivación"></textarea>
+    <div class="hint">El sistema evaluará cada propuesta y generará el prompt para ejecutarla en Claude.</div>
   </div>
 
-  <button class="btn" style="background:var(--s2);border:1px solid var(--b);color:var(--tx2);margin-top:0;margin-bottom:8px" onclick="previewProposal()">🔍 Ver evaluación y prompt (sin guardar)</button>
-  <div id="proposal-preview" style="display:none;margin-bottom:16px"></div>
+  <button class="btn-sec" onclick="previewProposals()">🔍 Ver evaluación y prompt (sin guardar)</button>
+  <div id="proposals-preview" style="display:none;margin-top:16px"></div>
 
-
-
-  <div style="margin-bottom:20px">
-    <button onclick="previewProposals()" style="padding:9px 18px;background:var(--s2);border:1px solid var(--b);color:var(--tx2);font-family:Inter,sans-serif;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--ac)';this.style.color='var(--ac)'" onmouseout="this.style.borderColor='var(--b)';this.style.color='var(--tx2)'">
-      👁 Ver preview del prompt (sin guardar)
-    </button>
-    <div id="proposal-preview" style="display:none;margin-top:12px;background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:14px;font-size:12px;color:var(--tx2);line-height:1.7"></div>
-  </div>
+  <hr class="divider">
 
   <div class="field">
     <label>Notas adicionales (opcional)</label>
-    <textarea id="extra" placeholder="Cualquier contexto que deba considerar el dashboard al generar recomendaciones." style="min-height:80px"></textarea>
+    <textarea id="extra" placeholder="Cualquier contexto adicional." style="min-height:80px"></textarea>
   </div>
 
-  <button class="btn" onclick="submit()" id="submit-btn">Guardar estrategia →</button>
+  <button class="btn" onclick="submitForm()" id="submit-btn">Guardar estrategia →</button>
   <div class="msg" id="msg"></div>
 </div>
 </div>
@@ -146,230 +152,129 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
 </div>
 
 <script>
-const N8N_WEBHOOK = "https://n8n-m0b3.onrender.com/webhook/strategy-update";
-
-const BRAND_NAMES = {
-  brooklyn: "Brooklyn Biltong",
-  granite: "Granite Nutrition",
-  ayoba: "Ayoba",
-  beg: "Beg & Barker"
-};
-
-
-function previewProposals() {
-  const brand = document.getElementById("brand").value;
-  const proposals = document.getElementById("proposals").value.trim();
-  const preview = document.getElementById("proposal-preview");
-  
-  if (!brand) { alert("Selecciona una marca primero."); return; }
-  if (!proposals) { alert("Escribe al menos una propuesta."); return; }
-  
-  const brandNames = {brooklyn:"Brooklyn Biltong",granite:"Granite Nutrition",ayoba:"Ayoba",beg:"Beg & Barker"};
-  
-  let html = "<strong style=\'color:var(--ac)\'>Preview del prompt para Claude:</strong><br><br>";
-  
-  proposals.split("\n").forEach(function(line) {
-    line = line.replace(/^-\s*/, "").trim();
-    if (!line) return;
-    html += "<div style=\'background:var(--bg);border-radius:6px;padding:12px;margin-bottom:10px\'>";
-    html += "<div style=\'font-size:11px;font-weight:700;color:var(--ac);margin-bottom:6px\'>💡 " + line + "</div>";
-    html += "<div style=\'font-size:11px;color:var(--tx3);margin-bottom:8px\'>Prompt generado para Claude:</div>";
-    
-    const prompt = \`Eres experto en Klaviyo y email marketing DTC para marcas en USA.
-
-MARCA: \${brandNames[brand]}
-PROPUESTA A EVALUAR E IMPLEMENTAR: \${line}
-
-Por favor:
-1. Evalúa si esta propuesta es viable para la marca
-2. Si es viable, genera el paso a paso COMPLETO en Klaviyo para implementarla
-3. Incluye: configuración exacta, segmento recomendado, contenido sugerido (asunto, preheader), KPIs a monitorear y criterios de éxito\`;
-    
-    html += "<div style=\'background:var(--s1);border-radius:5px;padding:10px;font-family:monospace;font-size:10px;color:var(--tx2);line-height:1.6;max-height:100px;overflow-y:auto\'>" + prompt.substring(0, 400) + "...</div>";
-    html += "<button onclick=\'navigator.clipboard.writeText(`" + prompt.replace(/`/g, "\\`") + "`).then(()=>alert(\"Prompt copiado. Pégalo en Claude.\"))\'  style=\'margin-top:8px;padding:5px 12px;background:var(--acd);color:var(--ac);border:1px solid rgba(181,242,61,.2);border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif\'>📋 Copiar prompt</button>";
-    html += "</div>";
-  });
-  
-  preview.innerHTML = html;
-  preview.style.display = "block";
-}
+var N8N_WEBHOOK = "https://n8n-m0b3.onrender.com/webhook/strategy-update";
+var BRAND_NAMES = {brooklyn:"Brooklyn Biltong",granite:"Granite Nutrition",ayoba:"Ayoba",beg:"Beg & Barker"};
+var BRAND_CATS = {brooklyn:"Biltong artesanal · USA",granite:"Suplementos deportivos · USA",ayoba:"Biltong y droewors · USA",beg:"Snacks para mascotas · USA"};
+var storedPrompts = [];
 
 function showMsg(text, type) {
-  const el = document.getElementById("msg");
+  var el = document.getElementById("msg");
   el.textContent = text;
-  el.className = `msg ${type}`;
+  el.className = "msg " + type;
   el.style.display = "block";
 }
 
 function getSelectedTags() {
-  return Array.from(document.querySelectorAll(".tag.sel")).map(t => t.textContent);
+  var tags = [];
+  document.querySelectorAll(".tag.sel").forEach(function(t) { tags.push(t.textContent); });
+  return tags;
 }
 
-async function submit() {
-  const brand = document.getElementById("brand").value;
-  const author = document.getElementById("author").value.trim();
+function evaluateProposal(proposal, brand) {
+  var p = proposal.toLowerCase();
+  var viable = true;
+  var recommendation = "";
+  var warnings = [];
 
-  if (!brand) { showMsg("Selecciona una marca.", "err"); return; }
-  if (!author) { showMsg("Ingresa tu nombre.", "err"); return; }
+  if (p.indexOf("win-back") > -1 || p.indexOf("winback") > -1 || p.indexOf("reactivac") > -1) {
+    viable = true;
+    recommendation = "Viable. Un flujo Win-Back bien segmentado puede recuperar 5-10% de clientes inactivos con bajo costo de implementacion.";
+  } else if (p.indexOf("120") > -1 || p.indexOf("180") > -1) {
+    viable = false;
+    recommendation = "Requiere evaluacion. Segmentos muy amplios tienden a reducir la conversion por incluir contactos muy frios.";
+    warnings.push("Testear primero con A/B: 90 dias vs el segmento propuesto para comparar conversion real.");
+  } else if (p.indexOf("descuento") > -1 || p.indexOf("% off") > -1) {
+    viable = true;
+    recommendation = "Viable. Verificar que el descuento respete los limites definidos en la estrategia de la marca.";
+    warnings.push("Revisar escala de descuentos aprobada antes de implementar.");
+  } else if (p.indexOf("sms") > -1) {
+    viable = true;
+    recommendation = "Viable si hay lista SMS activa. Verificar en Klaviyo - Lists - SMS subscribers.";
+  } else if (p.indexOf("flujo") > -1 || p.indexOf("flow") > -1 || p.indexOf("secuencia") > -1) {
+    viable = true;
+    recommendation = "Viable. Un flujo nuevo puede generar revenue incremental sin costo adicional por envio.";
+  } else if (p.indexOf("asunto") > -1 || p.indexOf("subject") > -1 || p.indexOf("a/b") > -1) {
+    viable = true;
+    recommendation = "Viable. A/B testear con 20% de la lista antes de enviar al segmento completo.";
+  } else if (p.indexOf("segmento") > -1 || p.indexOf("segment") > -1) {
+    viable = true;
+    recommendation = "Viable. Definir los filtros exactos en Klaviyo antes de enviar para asegurar calidad del segmento.";
+  } else {
+    viable = true;
+    recommendation = "Propuesta registrada. El dashboard la evaluara con datos reales de Klaviyo el proximo lunes.";
+  }
 
-  const payload = {
-    brand,
-    author,
-    campaigns_notes: document.getElementById("campaigns_notes").value.trim(),
-    strategy_notes: document.getElementById("strategy_notes").value.trim(),
-    alerts: document.getElementById("alerts").value.trim(),
-    priorities: getSelectedTags(),
-    extra: document.getElementById("extra").value.trim(),
+  var brandName = BRAND_NAMES[brand] || brand;
+  var brandCat = BRAND_CATS[brand] || "";
+
+  var claudePrompt = "Eres experto en Klaviyo y email marketing DTC para marcas en USA.\n\n" +
+    "MARCA: " + brandName + " (" + brandCat + ")\n" +
+    "COMMUNITY MANAGER: Alicia Prieto\n\n" +
+    "PROPUESTA A IMPLEMENTAR: " + proposal + "\n\n" +
+    "Genera el paso a paso COMPLETO EN ESPANOL para implementar esta propuesta en Klaviyo. Incluye:\n" +
+    "1. Configuracion exacta (donde hacer clic, que seleccionar)\n" +
+    "2. Segmento recomendado con filtros exactos\n" +
+    "3. Contenido sugerido (asunto, preheader, estructura del email)\n" +
+    "4. KPIs a monitorear en los primeros 30 dias\n" +
+    "5. Criterios de exito y cuando escalar o descartar\n\n" +
+    "Se muy especifico. Alicia ejecutara esto directamente en Klaviyo.";
+
+  return {
+    proposal: proposal,
+    viable: viable,
+    recommendation: recommendation,
+    warnings: warnings,
+    claudePrompt: claudePrompt
   };
-
-  const proposals_val = document.getElementById("proposals").value.trim();
-  if (!payload.campaigns_notes && !payload.strategy_notes && !payload.alerts && !proposals_val) {
-    showMsg("Completa al menos un campo.", "err");
-    return;
-  }
-
-  const btn = document.getElementById("submit-btn");
-  btn.disabled = true;
-  btn.textContent = "Guardando...";
-
-  try {
-    const res = await fetch(N8N_WEBHOOK, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-
-    if (res.ok) {
-      document.getElementById("form-screen").style.display = "none";
-      document.getElementById("success-screen").style.display = "block";
-      document.getElementById("success-msg").textContent =
-        `La estrategia de ${BRAND_NAMES[brand]} quedó actualizada. El dashboard de email la usará el próximo lunes para generar recomendaciones más precisas.`;
-    } else {
-      const err = await res.text();
-      showMsg(`Error al guardar. Intenta de nuevo o contacta a Natalia. (${res.status})`, "err");
-      btn.disabled = false;
-      btn.textContent = "Guardar estrategia →";
-    }
-  } catch(e) {
-    showMsg("Error de conexión. Verifica tu internet e intenta de nuevo.", "err");
-    btn.disabled = false;
-    btn.textContent = "Guardar estrategia →";
-  }
 }
 
-function resetForm() {
-  document.getElementById("form-screen").style.display = "block";
-  document.getElementById("success-screen").style.display = "none";
-  document.getElementById("brand").value = "";
-  document.getElementById("author").value = "";
-  document.getElementById("campaigns_notes").value = "";
-  document.getElementById("strategy_notes").value = "";
-  document.getElementById("alerts").value = "";
-  document.getElementById("extra").value = "";
-  document.getElementById("proposals").value = "";
-  document.querySelectorAll(".tag.sel").forEach(t => t.classList.remove("sel"));
-  document.getElementById("msg").style.display = "none";
-  document.getElementById("submit-btn").disabled = false;
-  document.getElementById("submit-btn").textContent = "Guardar estrategia →";
-}
-
-function previewProposal() {
+function previewProposals() {
   var brand = document.getElementById("brand").value;
-  var proposals_raw = document.getElementById("proposals").value.trim();
-  
-  if (!brand) { alert("Selecciona una marca primero."); return; }
-  if (!proposals_raw) { alert("Escribe al menos una propuesta."); return; }
-  
-  var brandNames = {
-    brooklyn: "Brooklyn Biltong",
-    granite: "Granite Nutrition", 
-    ayoba: "Ayoba",
-    beg: "Beg & Barker"
-  };
-  
-  var brandCategories = {
-    brooklyn: "Biltong artesanal · USA",
-    granite: "Suplementos deportivos · USA",
-    ayoba: "Biltong y droewors · USA",
-    beg: "Snacks para mascotas · USA"
-  };
+  var raw = document.getElementById("proposals").value.trim();
 
-  var proposals = proposals_raw.split("\n").map(function(l) {
+  if (!brand) { alert("Selecciona una marca primero."); return; }
+  if (!raw) { alert("Escribe al menos una propuesta."); return; }
+
+  var proposals = raw.split("\n").map(function(l) {
     return l.trim().replace(/^-\s*/, "");
   }).filter(Boolean);
 
-  var html = "<div style=\"margin-bottom:12px;font-size:12px;color:var(--tx3)\">Evaluación preliminar — los datos reales se calculan cada lunes con Klaviyo.</div>";
+  storedPrompts = [];
+  var html = "<div style=\"font-size:12px;color:var(--tx3);margin-bottom:12px\">Evaluacion preliminar basada en logica de la estrategia. Los datos reales de Klaviyo se usan el lunes.</div>";
 
   proposals.forEach(function(proposal, i) {
-    var viable = true;
-    var recommendation = "";
-    var warnings = [];
-    var prop_lower = proposal.toLowerCase();
+    var ev = evaluateProposal(proposal, brand);
+    storedPrompts.push(ev.claudePrompt);
 
-    if (prop_lower.indexOf("win-back") > -1 || prop_lower.indexOf("winback") > -1 || prop_lower.indexOf("reactivac") > -1) {
-      viable = true;
-      recommendation = "Viable. Un flujo Win-Back bien segmentado puede recuperar 5-10% de clientes inactivos con bajo costo.";
-    } else if (prop_lower.indexOf("120") > -1 || prop_lower.indexOf("180") > -1) {
-      viable = false;
-      recommendation = "Requiere evaluación. Segmentos muy amplios tienden a reducir conversión por incluir contactos muy fríos.";
-      warnings.push("Testear primero con A/B: 90 días vs el segmento propuesto.");
-    } else if (prop_lower.indexOf("descuento") > -1 || prop_lower.indexOf("off") > -1 || prop_lower.indexOf("%") > -1) {
-      viable = true;
-      recommendation = "Viable. Verificar que el descuento respete los límites definidos en la estrategia de la marca.";
-      warnings.push("Revisar escala de descuentos antes de implementar.");
-    } else if (prop_lower.indexOf("sms") > -1) {
-      viable = true;
-      recommendation = "Viable si hay lista SMS activa. Verificar en Klaviyo → Lists → SMS subscribers.";
-    } else if (prop_lower.indexOf("flujo") > -1 || prop_lower.indexOf("flow") > -1 || prop_lower.indexOf("secuencia") > -1) {
-      viable = true;
-      recommendation = "Viable. Un flujo nuevo puede generar revenue incremental sin costo adicional por envío.";
-    } else if (prop_lower.indexOf("asunto") > -1 || prop_lower.indexOf("subject") > -1) {
-      viable = true;
-      recommendation = "Viable. A/B testear con 20% de la lista antes de enviar al segmento completo.";
-    } else {
-      viable = true;
-      recommendation = "Propuesta registrada. El dashboard la evaluará con datos reales el próximo lunes.";
-    }
+    var cardClass = ev.viable ? "prop-card viable" : "prop-card warn";
+    var icon = ev.viable ? "✅ Viable" : "⚠️ Requiere evaluacion";
 
-    var claudePrompt = "Eres experto en Klaviyo y email marketing DTC para marcas en USA.\n\n" +
-      "MARCA: " + brandNames[brand] + " (" + brandCategories[brand] + ")\n" +
-      "COMMUNITY MANAGER: Alicia Prieto\n\n" +
-      "PROPUESTA A IMPLEMENTAR: " + proposal + "\n\n" +
-      "Genera el paso a paso COMPLETO EN ESPAÑOL para implementar esta propuesta en Klaviyo. Incluye:\n" +
-      "1. Configuración exacta (dónde hacer clic, qué seleccionar)\n" +
-      "2. Segmento recomendado con filtros exactos\n" +
-      "3. Contenido sugerido (asunto, preheader, estructura del email)\n" +
-      "4. KPIs a monitorear en los primeros 30 días\n" +
-      "5. Criterios de éxito y cuándo escalar o descartar\n\n" +
-      "Sé muy específico. Alicia ejecutará esto directamente en Klaviyo.";
+    html += "<div class=\"" + cardClass + "\">";
+    html += "<div class=\"prop-label\">" + icon + "</div>";
+    html += "<div class=\"prop-title\">" + ev.proposal + "</div>";
+    html += "<div class=\"prop-rec\">" + ev.recommendation + "</div>";
 
-    var color = viable ? "var(--ac)" : "var(--amb)";
-    var icon = viable ? "✅" : "⚠️";
-
-    html += "<div style=\"background:var(--s2);border:1px solid var(--b);border-radius:10px;padding:16px;margin-bottom:12px;border-left:4px solid " + color + "\">";
-    html += "<div style=\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:" + color + ";margin-bottom:6px\">" + icon + " " + (viable ? "Viable" : "Requiere evaluación") + "</div>";
-    html += "<div style=\"font-size:13px;font-weight:600;color:var(--tx);margin-bottom:8px\">" + proposal + "</div>";
-    html += "<div style=\"font-size:12px;color:var(--tx2);margin-bottom:10px\">" + recommendation + "</div>";
-    
-    warnings.forEach(function(w) {
-      html += "<div style=\"font-size:11px;color:var(--amb);background:var(--ambd);padding:6px 10px;border-radius:5px;margin-bottom:6px\">⚠ " + w + "</div>";
+    ev.warnings.forEach(function(w) {
+      html += "<div class=\"prop-warn\">⚠ " + w + "</div>";
     });
 
-    html += "<div style=\"margin-top:12px;border-top:1px solid var(--b);padding-top:12px\">";
-    html += "<div style=\"font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px\">Prompt para Claude</div>";
-    html += "<div style=\"background:var(--bg);border-radius:6px;padding:10px;font-size:11px;color:var(--tx2);line-height:1.6;max-height:100px;overflow-y:auto;font-family:monospace\">" + claudePrompt.substring(0, 250) + "...</div>";
-    html += "<button onclick=\"copyText(`" + claudePrompt.replace(/`/g, "'") + "`)\" style=\"margin-top:8px;padding:7px 14px;background:var(--acd);color:var(--ac);border:1px solid rgba(181,242,61,.2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif\">📋 Copiar prompt completo</button>";
+    html += "<div style=\"border-top:1px solid var(--b);padding-top:12px;margin-top:10px\">";
+    html += "<div style=\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:8px\">Prompt para Claude</div>";
+    html += "<div class=\"prop-prompt\">" + ev.claudePrompt.substring(0, 280) + "...</div>";
+    html += "<button class=\"copy-btn\" onclick=\"copyStoredPrompt(" + i + ")\">📋 Copiar prompt completo</button>";
     html += "</div></div>";
   });
 
-  var preview = document.getElementById("proposal-preview");
+  var preview = document.getElementById("proposals-preview");
   preview.innerHTML = html;
   preview.style.display = "block";
 }
 
-function copyText(text) {
+function copyStoredPrompt(i) {
+  var text = storedPrompts[i] || "";
+  if (!text) return;
   navigator.clipboard.writeText(text).then(function() {
-    alert("Prompt copiado. Pégalo en Claude para obtener el paso a paso completo.");
+    alert("Prompt copiado. Pegalo en Claude para obtener el paso a paso completo.");
   }).catch(function() {
     var ta = document.createElement("textarea");
     ta.value = text;
@@ -377,8 +282,119 @@ function copyText(text) {
     ta.select();
     document.execCommand("copy");
     document.body.removeChild(ta);
-    alert("Prompt copiado. Pégalo en Claude para obtener el paso a paso completo.");
+    alert("Prompt copiado. Pegalo en Claude para obtener el paso a paso completo.");
   });
+}
+
+function buildContent() {
+  var brand = document.getElementById("brand").value;
+  var author = document.getElementById("author").value.trim();
+  var campaigns = document.getElementById("campaigns_notes").value.trim();
+  var strategy = document.getElementById("strategy_notes").value.trim();
+  var alerts = document.getElementById("alerts").value.trim();
+  var proposals = document.getElementById("proposals").value.trim();
+  var extra = document.getElementById("extra").value.trim();
+  var priorities = getSelectedTags();
+  var date = new Date().toLocaleDateString("es", {day:"2-digit",month:"long",year:"numeric"});
+  var brandName = BRAND_NAMES[brand] || brand;
+
+  var lines = [];
+  lines.push("# Estrategia " + brandName + " - Actualizado el " + date);
+  if (author) lines.push("Actualizado por: " + author);
+  lines.push("");
+
+  if (campaigns) { lines.push("## Campanas y aprendizajes recientes"); lines.push(campaigns); lines.push(""); }
+  if (strategy) { lines.push("## Restricciones y reglas de la marca"); lines.push(strategy); lines.push(""); }
+  if (alerts) { lines.push("## Alertas y problemas activos"); lines.push(alerts); lines.push(""); }
+
+  if (priorities.length > 0) {
+    lines.push("## Prioridades esta semana");
+    priorities.forEach(function(p) { lines.push("- " + p); });
+    lines.push("");
+  }
+
+  if (proposals) {
+    lines.push("## Propuestas de optimizacion");
+    proposals.split("\n").forEach(function(l) {
+      l = l.trim();
+      if (l) lines.push(l.charAt(0) === "-" ? l : "- " + l);
+    });
+    lines.push("");
+  }
+
+  if (extra) { lines.push("## Notas adicionales"); lines.push(extra); lines.push(""); }
+
+  return lines.join("\n");
+}
+
+function submitForm() {
+  var brand = document.getElementById("brand").value;
+  var author = document.getElementById("author").value.trim();
+
+  if (!brand) { showMsg("Selecciona una marca.", "err"); return; }
+  if (!author) { showMsg("Ingresa tu nombre.", "err"); return; }
+
+  var c = document.getElementById("campaigns_notes").value.trim();
+  var s = document.getElementById("strategy_notes").value.trim();
+  var a = document.getElementById("alerts").value.trim();
+  var pr = document.getElementById("proposals").value.trim();
+  var ex = document.getElementById("extra").value.trim();
+
+  if (!c && !s && !a && !pr && !ex && getSelectedTags().length === 0) {
+    showMsg("Completa al menos un campo.", "err");
+    return;
+  }
+
+  var btn = document.getElementById("submit-btn");
+  btn.disabled = true;
+  btn.textContent = "Guardando...";
+
+  var payload = {
+    brand: brand,
+    author: author,
+    campaigns_notes: c,
+    strategy_notes: s,
+    alerts: a,
+    proposals: pr,
+    extra: ex,
+    priorities: getSelectedTags(),
+    content: buildContent()
+  };
+
+  fetch(N8N_WEBHOOK, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload)
+  }).then(function(res) {
+    if (res.ok) {
+      document.getElementById("form-screen").style.display = "none";
+      document.getElementById("success-screen").style.display = "block";
+      document.getElementById("success-msg").textContent =
+        "La estrategia de " + BRAND_NAMES[brand] + " quedo actualizada. El dashboard la usara el proximo lunes.";
+    } else {
+      showMsg("Error al guardar. Intenta de nuevo. (" + res.status + ")", "err");
+      btn.disabled = false;
+      btn.textContent = "Guardar estrategia ->";
+    }
+  }).catch(function(e) {
+    showMsg("Error de conexion. Verifica tu internet e intenta de nuevo.", "err");
+    btn.disabled = false;
+    btn.textContent = "Guardar estrategia ->";
+  });
+}
+
+function resetForm() {
+  document.getElementById("form-screen").style.display = "block";
+  document.getElementById("success-screen").style.display = "none";
+  ["brand","author","campaigns_notes","strategy_notes","alerts","proposals","extra"].forEach(function(id) {
+    document.getElementById(id).value = "";
+  });
+  document.querySelectorAll(".tag.sel").forEach(function(t) { t.classList.remove("sel"); });
+  document.getElementById("msg").style.display = "none";
+  document.getElementById("proposals-preview").style.display = "none";
+  document.getElementById("submit-btn").disabled = false;
+  document.getElementById("submit-btn").textContent = "Guardar estrategia ->";
+  storedPrompts = [];
 }
 </script>
 </body>

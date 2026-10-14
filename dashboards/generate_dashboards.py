@@ -304,6 +304,111 @@ def generate_optimizations(brand_name, category, campaigns, flows, brand_key="")
     return "\n".join(lines)
 
 
+def evaluate_proposals(brand_name, category, campaigns, flows, proposals, strategy, brand_key):
+    """Evalua propuestas de optimizacion y genera prompts para Claude"""
+    if not proposals:
+        return []
+
+    use_camps = [c for c in campaigns if c.get("recipients", 0) > 0]
+    avg_open = sum(c["open_rate"] for c in use_camps) / max(len(use_camps), 1)
+    avg_click = sum(c["click_rate"] for c in use_camps) / max(len(use_camps), 1)
+    avg_rpr = sum(c["rpr"] for c in use_camps) / max(len(use_camps), 1)
+    total_rev = sum(c["conv_value"] for c in use_camps) + sum(f["conv_value"] for f in flows)
+    active_flow_names = [f["name"].lower() for f in flows]
+    best_camps = sorted(use_camps, key=lambda x: x["conv_value"], reverse=True)[:3]
+
+    results = []
+    for proposal in proposals:
+        prop_lower = proposal.lower()
+        viable = True
+        warnings = []
+        recommendation = ""
+
+        # Evaluar viabilidad segun tipo de propuesta
+        if any(w in prop_lower for w in ["win-back", "winback", "reactivacion", "reactivar"]):
+            existing = any("win" in n or "reactivat" in n for n in active_flow_names)
+            if existing:
+                warnings.append("Ya existe un flujo de reactivacion activo — verificar que no se superpongan los segmentos.")
+            if avg_rpr > 0.05:
+                recommendation = f"Viable. RPR promedio de la cuenta (${avg_rpr:.2f}) justifica el esfuerzo."
+            else:
+                viable = False
+                recommendation = f"Requiere evaluacion. RPR promedio bajo (${avg_rpr:.2f}) — validar tamano del segmento primero."
+
+        elif any(w in prop_lower for w in ["segmento", "segment", "120 dias", "180 dias", "dias inactivos"]):
+            if "120" in prop_lower or "180" in prop_lower:
+                warnings.append("Segmentos muy amplios tienden a reducir la conversion por incluir contactos muy frios.")
+                viable = False
+                recommendation = "No recomendado sin prueba. Empezar con un A/B: 90 dias vs 120 dias para comparar conversion."
+            else:
+                recommendation = "Viable. Testear con un subset del segmento antes de enviar a toda la lista."
+
+        elif any(w in prop_lower for w in ["descuento", "discount", "off", "%"]):
+            if strategy and "maximo" in strategy.lower():
+                recommendation = "Revisar escala de descuentos definida en la estrategia de la marca antes de implementar."
+                warnings.append("La estrategia de la marca tiene restricciones de descuento — verificar limites.")
+            else:
+                recommendation = "Viable. Testear descuento moderado (10-15%) con countdown de 48h para maximizar conversion."
+
+        elif any(w in prop_lower for w in ["flujo", "flow", "secuencia", "automatizacion"]):
+            recommendation = f"Viable. La cuenta tiene RPR promedio de ${avg_rpr:.2f} — un flujo nuevo puede generar revenue incremental."
+
+        elif any(w in prop_lower for w in ["asunto", "subject", "subject line", "linea"]):
+            if best_camps:
+                recommendation = f"Viable. La mejor campana del periodo tuvo {best_camps[0]['open_rate']*100:.1f}% de apertura — usar ese estilo como referencia."
+            else:
+                recommendation = "Viable. A/B testear con 20% de la lista antes de enviar al segmento completo."
+
+        elif any(w in prop_lower for w in ["sms", "texto", "text message"]):
+            recommendation = "Viable si la cuenta tiene lista de SMS activa. Verificar en Klaviyo > Lists > SMS subscribers."
+
+        else:
+            recommendation = "Propuesta recibida. Evaluar contra los datos del periodo antes de implementar."
+
+        # Generar prompt para Claude
+        strategy_context = f"\nESTRATEGIA DE LA MARCA:\n{strategy[:500]}" if strategy else ""
+        camps_context = "\n".join([f"- {c['name']} | Apertura: {c['open_rate']*100:.1f}% | Rev: ${c['conv_value']:.0f}" for c in best_camps])
+        flows_context = "\n".join([f"- {f['name']} | Conv: {f['conv_rate']*100:.1f}% | RPR: ${f['rpr']:.2f}" for f in flows[:5]])
+
+        claude_prompt = f"""Eres experto en Klaviyo y email marketing DTC para marcas en USA.
+
+MARCA: {brand_name} ({category})
+COMMUNITY MANAGER: Alicia Prieto
+DATOS REALES (ultimos 90 dias):
+- Revenue total email: ${total_rev:,.0f}
+- Apertura promedio: {avg_open*100:.1f}%
+- Clics promedio: {avg_click*100:.2f}%
+- RPR promedio: ${avg_rpr:.2f}
+
+MEJORES CAMPANAS:
+{camps_context}
+
+FLUJOS ACTIVOS:
+{flows_context}
+{strategy_context}
+
+PROPUESTA A IMPLEMENTAR: {proposal}
+
+Genera el paso a paso COMPLETO EN ESPANOL para implementar esta propuesta en Klaviyo. Incluye:
+1. Configuracion exacta (donde hacer clic, que seleccionar)
+2. Segmento recomendado con filtros exactos
+3. Contenido sugerido (asunto, preheader, estructura del email)
+4. KPIs a monitorear en los primeros 30 dias
+5. Criterios de exito y cuando escalar o descartar
+
+Se muy especifico. Alicia ejecutara esto directamente en Klaviyo."""
+
+        results.append({
+            "proposal": proposal,
+            "viable": viable,
+            "recommendation": recommendation,
+            "warnings": warnings,
+            "claude_prompt": claude_prompt,
+        })
+
+    return results
+
+
 def fetch_brand_data(brand_config):
     print(f"\nLeyendo {brand_config['name']}...")
     client = KlaviyoClient(brand_config["api_key"])
@@ -413,15 +518,37 @@ def fetch_brand_data(brand_config):
     avg_click = sum(c["click_rate"] for c in sent) / max(len(sent), 1)
     avg_conv = sum(c["conv_rate"] for c in sent) / max(len(sent), 1)
 
-    print(f"  Generando optimizaciones con IA...")
+    print(f"  Generando optimizaciones...")
+    strategy = read_brand_strategy(brand_config["brand_key"])
     optimizations = generate_optimizations(brand_config["name"], brand_config["category"], campaigns, flows, brand_config["brand_key"])
     print(f"  Optimizaciones: {len(optimizations)} chars")
+
+    # Leer propuestas del archivo de estrategia
+    proposals = []
+    if strategy:
+        for line in strategy.split("\n"):
+            line = line.strip()
+            if line.startswith("## Propuestas") or line.startswith("## propuestas"):
+                capturing = True
+            elif line.startswith("## ") and "propuesta" not in line.lower():
+                capturing = False
+            elif line.startswith("- ") and "capturing" in dir() and capturing:
+                proposals.append(line[2:].strip())
+
+    proposal_evals = []
+    if proposals:
+        print(f"  Evaluando {len(proposals)} propuestas...")
+        proposal_evals = evaluate_proposals(
+            brand_config["name"], brand_config["category"],
+            campaigns, flows, proposals, strategy, brand_config["brand_key"]
+        )
 
     return {
         "brand": brand_config,
         "campaigns": campaigns,
         "flows": flows,
         "optimizations": optimizations,
+        "proposal_evals": proposal_evals,
         "kpis": {
             "total_revenue": total_camp_rev + total_flow_rev,
             "campaign_revenue": total_camp_rev,
@@ -447,6 +574,7 @@ def generate_html(data):
     flows_json = json.dumps(data["flows"], ensure_ascii=False)
     flujos_json = json.dumps(FLUJOS_POR_MARCA.get(brand_key, []), ensure_ascii=False)
     optimizations_json = json.dumps(data.get("optimizations", ""), ensure_ascii=False)
+    proposals_json = json.dumps(data.get("proposal_evals", []), ensure_ascii=False)
 
     p = []
     p.append('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">')
@@ -510,8 +638,9 @@ def generate_html(data):
     p.append('<div class="tab active" onclick="showT(\'resultados\',this)">Resultados</div>')
     p.append('<div class="tab" onclick="showT(\'flujos\',this)">Flujos</div>')
     p.append('<div class="tab" onclick="showT(\'optimizaciones\',this)">Optimizaciones IA</div>')
+    p.append('<div class="tab" onclick="showT(\'propuestas\',this)">Propuestas</div>')
     p.append('</div>')
-    p.append('<div class="main"><div id="t-resultados"></div><div id="t-flujos" style="display:none"></div><div id="t-optimizaciones" style="display:none"></div></div>')
+    p.append('<div class="main"><div id="t-resultados"></div><div id="t-flujos" style="display:none"></div><div id="t-optimizaciones" style="display:none"></div><div id="t-propuestas" style="display:none"></div></div>')
     p.append('<div class="modal-ov" id="m-opt"><div class="modal">')
     p.append(f'<div class="mh"><div class="mt">&#9889; Optimizacion IA — {name}</div><button class="cbtn" onclick="cm(\'m-opt\')">&#10005;</button></div>')
     p.append('<div class="mc" id="m-opt-body"></div>')
@@ -536,6 +665,7 @@ def generate_html(data):
     p.append(f'var BRAND_NAME="{name}";')
     p.append(f'var GENERATED="{generated_at}";')
     p.append(f'var OPTIMIZATIONS={optimizations_json};')
+    p.append(f'var PROPOSALS={proposals_json};')
     p.append('''
 var df=null,dt=null,optTxt="",fluTxt="",selFlu="";
 function fmt8(d){return d.toISOString().split("T")[0]}
@@ -544,10 +674,59 @@ function fmtP(n){return(Number(n||0)*100).toFixed(1)+"%"}
 function pc(v,h,m){return v>=h?"ph":v>=m?"pm":"pl"}
 function cm(id){document.getElementById(id).classList.remove("open")}
 function showT(id,el){
-  ["resultados","flujos","optimizaciones"].forEach(function(t){document.getElementById("t-"+t).style.display="none"});
+  ["resultados","flujos","optimizaciones","propuestas"].forEach(function(t){document.getElementById("t-"+t).style.display="none"});
   document.querySelectorAll(".tab").forEach(function(t){t.classList.remove("active")});
   document.getElementById("t-"+id).style.display="block";
   el.classList.add("active");
+  if(id==="propuestas")renderPropuestas();
+}
+function renderPropuestas(){
+  var el=document.getElementById("t-propuestas");
+  if(!PROPOSALS||PROPOSALS.length===0){
+    el.innerHTML="<div style=\\"margin-top:18px;padding:40px;text-align:center;color:var(--tx3)\\">"+
+      "<div style=\\"font-size:32px;margin-bottom:12px\\">💡</div>"+
+      "<div style=\\"font-size:15px;font-weight:600;color:var(--tx);margin-bottom:8px\\">Sin propuestas esta semana</div>"+
+      "<div style=\\"font-size:13px\\">Agrega propuestas en el <a href=\\"strategy_update.html\\" style=\\"color:var(--ac)\\">formulario de estrategia semanal</a> para evaluarlas aqui.</div></div>";
+    return;
+  }
+  var html="<div style=\\"margin-top:18px\\">";
+  html+="<div style=\\"font-size:13px;color:var(--tx2);margin-bottom:16px\\">"+PROPOSALS.length+" propuesta(s) evaluadas con datos reales de Klaviyo.</div>";
+  PROPOSALS.forEach(function(p,i){
+    var color=p.viable?"var(--ac)":"var(--amb)";
+    var icon=p.viable?"✅":"⚠️";
+    html+="<div style=\\"background:var(--s1);border:1px solid var(--b);border-radius:11px;padding:18px;margin-bottom:14px;border-left:4px solid "+color+"\\">";
+    html+="<div style=\\"font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:"+color+";margin-bottom:6px\\">"+icon+" "+(p.viable?"Viable":"Requiere evaluacion")+"</div>";
+    html+="<div style=\\"font-size:14px;font-weight:600;color:var(--tx);margin-bottom:8px\\">"+p.proposal+"</div>";
+    html+="<div style=\\"font-size:12px;color:var(--tx2);margin-bottom:10px\\">"+p.recommendation+"</div>";
+    if(p.warnings&&p.warnings.length){
+      p.warnings.forEach(function(w){
+        html+="<div style=\\"font-size:11px;color:var(--amb);background:var(--ambd);padding:6px 10px;border-radius:5px;margin-bottom:6px\\">⚠ "+w+"</div>";
+      });
+    }
+    html+="<div style=\\"margin-top:12px;border-top:1px solid var(--b);padding-top:12px\\">";
+    html+="<div style=\\"font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px\\">Prompt para Claude</div>";
+    html+="<div style=\\"background:var(--s2);border-radius:7px;padding:12px;font-size:11px;color:var(--tx2);line-height:1.6;max-height:120px;overflow-y:auto;font-family:monospace\\">"+p.claude_prompt.substring(0,300)+"...</div>";
+    html+="<button onclick=\\"copyPrompt("+i+")\\" style=\\"margin-top:8px;padding:7px 14px;background:var(--acd);color:var(--ac);border:1px solid rgba(181,242,61,.2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif\\">&#128203; Copiar prompt completo</button>";
+    html+="</div></div>";
+  });
+  html+="<div style=\\"margin-top:14px;padding:14px;background:var(--s2);border-radius:8px;border:1px solid var(--b);font-size:12px;color:var(--tx3)\\">Para agregar nuevas propuestas, <a href=\\"strategy_update.html\\" style=\\"color:var(--ac)\\">actualiza la estrategia semanal</a> con una seccion de Propuestas.</div>";
+  html+="</div>";
+  el.innerHTML=html;
+}
+function copyPrompt(idx){
+  var p=PROPOSALS[idx];
+  if(!p)return;
+  navigator.clipboard.writeText(p.claude_prompt).then(function(){
+    alert("Prompt copiado. Pegalo en Claude para obtener el paso a paso completo.");
+  }).catch(function(){
+    var ta=document.createElement("textarea");
+    ta.value=p.claude_prompt;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    alert("Prompt copiado. Pegalo en Claude para obtener el paso a paso completo.");
+  });
 }
 function initD(){
   var today=new Date();var from=new Date(today);from.setDate(from.getDate()-30);

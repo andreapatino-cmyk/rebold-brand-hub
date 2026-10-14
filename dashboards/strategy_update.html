@@ -116,6 +116,18 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
     <div class="hint">El dashboard evaluará cada propuesta contra los datos reales de Klaviyo y generará el prompt para ejecutarla en Claude.</div>
   </div>
 
+  <button class="btn" style="background:var(--s2);border:1px solid var(--b);color:var(--tx2);margin-top:0;margin-bottom:8px" onclick="previewProposal()">🔍 Ver evaluación y prompt (sin guardar)</button>
+  <div id="proposal-preview" style="display:none;margin-bottom:16px"></div>
+
+
+
+  <div style="margin-bottom:20px">
+    <button onclick="previewProposals()" style="padding:9px 18px;background:var(--s2);border:1px solid var(--b);color:var(--tx2);font-family:Inter,sans-serif;font-size:12px;font-weight:600;border-radius:8px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--ac)';this.style.color='var(--ac)'" onmouseout="this.style.borderColor='var(--b)';this.style.color='var(--tx2)'">
+      👁 Ver preview del prompt (sin guardar)
+    </button>
+    <div id="proposal-preview" style="display:none;margin-top:12px;background:var(--s2);border:1px solid var(--b);border-radius:8px;padding:14px;font-size:12px;color:var(--tx2);line-height:1.7"></div>
+  </div>
+
   <div class="field">
     <label>Notas adicionales (opcional)</label>
     <textarea id="extra" placeholder="Cualquier contexto que deba considerar el dashboard al generar recomendaciones." style="min-height:80px"></textarea>
@@ -142,6 +154,45 @@ const BRAND_NAMES = {
   ayoba: "Ayoba",
   beg: "Beg & Barker"
 };
+
+
+function previewProposals() {
+  const brand = document.getElementById("brand").value;
+  const proposals = document.getElementById("proposals").value.trim();
+  const preview = document.getElementById("proposal-preview");
+  
+  if (!brand) { alert("Selecciona una marca primero."); return; }
+  if (!proposals) { alert("Escribe al menos una propuesta."); return; }
+  
+  const brandNames = {brooklyn:"Brooklyn Biltong",granite:"Granite Nutrition",ayoba:"Ayoba",beg:"Beg & Barker"};
+  
+  let html = "<strong style=\'color:var(--ac)\'>Preview del prompt para Claude:</strong><br><br>";
+  
+  proposals.split("\n").forEach(function(line) {
+    line = line.replace(/^-\s*/, "").trim();
+    if (!line) return;
+    html += "<div style=\'background:var(--bg);border-radius:6px;padding:12px;margin-bottom:10px\'>";
+    html += "<div style=\'font-size:11px;font-weight:700;color:var(--ac);margin-bottom:6px\'>💡 " + line + "</div>";
+    html += "<div style=\'font-size:11px;color:var(--tx3);margin-bottom:8px\'>Prompt generado para Claude:</div>";
+    
+    const prompt = \`Eres experto en Klaviyo y email marketing DTC para marcas en USA.
+
+MARCA: \${brandNames[brand]}
+PROPUESTA A EVALUAR E IMPLEMENTAR: \${line}
+
+Por favor:
+1. Evalúa si esta propuesta es viable para la marca
+2. Si es viable, genera el paso a paso COMPLETO en Klaviyo para implementarla
+3. Incluye: configuración exacta, segmento recomendado, contenido sugerido (asunto, preheader), KPIs a monitorear y criterios de éxito\`;
+    
+    html += "<div style=\'background:var(--s1);border-radius:5px;padding:10px;font-family:monospace;font-size:10px;color:var(--tx2);line-height:1.6;max-height:100px;overflow-y:auto\'>" + prompt.substring(0, 400) + "...</div>";
+    html += "<button onclick=\'navigator.clipboard.writeText(`" + prompt.replace(/`/g, "\\`") + "`).then(()=>alert(\"Prompt copiado. Pégalo en Claude.\"))\'  style=\'margin-top:8px;padding:5px 12px;background:var(--acd);color:var(--ac);border:1px solid rgba(181,242,61,.2);border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif\'>📋 Copiar prompt</button>";
+    html += "</div>";
+  });
+  
+  preview.innerHTML = html;
+  preview.style.display = "block";
+}
 
 function showMsg(text, type) {
   const el = document.getElementById("msg");
@@ -171,8 +222,9 @@ async function submit() {
     extra: document.getElementById("extra").value.trim(),
   };
 
-  if (!payload.campaigns_notes && !payload.strategy_notes && !payload.alerts) {
-    showMsg("Completa al menos un campo de contenido.", "err");
+  const proposals_val = document.getElementById("proposals").value.trim();
+  if (!payload.campaigns_notes && !payload.strategy_notes && !payload.alerts && !proposals_val) {
+    showMsg("Completa al menos un campo.", "err");
     return;
   }
 
@@ -219,6 +271,114 @@ function resetForm() {
   document.getElementById("msg").style.display = "none";
   document.getElementById("submit-btn").disabled = false;
   document.getElementById("submit-btn").textContent = "Guardar estrategia →";
+}
+
+function previewProposal() {
+  var brand = document.getElementById("brand").value;
+  var proposals_raw = document.getElementById("proposals").value.trim();
+  
+  if (!brand) { alert("Selecciona una marca primero."); return; }
+  if (!proposals_raw) { alert("Escribe al menos una propuesta."); return; }
+  
+  var brandNames = {
+    brooklyn: "Brooklyn Biltong",
+    granite: "Granite Nutrition", 
+    ayoba: "Ayoba",
+    beg: "Beg & Barker"
+  };
+  
+  var brandCategories = {
+    brooklyn: "Biltong artesanal · USA",
+    granite: "Suplementos deportivos · USA",
+    ayoba: "Biltong y droewors · USA",
+    beg: "Snacks para mascotas · USA"
+  };
+
+  var proposals = proposals_raw.split("\n").map(function(l) {
+    return l.trim().replace(/^-\s*/, "");
+  }).filter(Boolean);
+
+  var html = "<div style=\"margin-bottom:12px;font-size:12px;color:var(--tx3)\">Evaluación preliminar — los datos reales se calculan cada lunes con Klaviyo.</div>";
+
+  proposals.forEach(function(proposal, i) {
+    var viable = true;
+    var recommendation = "";
+    var warnings = [];
+    var prop_lower = proposal.toLowerCase();
+
+    if (prop_lower.indexOf("win-back") > -1 || prop_lower.indexOf("winback") > -1 || prop_lower.indexOf("reactivac") > -1) {
+      viable = true;
+      recommendation = "Viable. Un flujo Win-Back bien segmentado puede recuperar 5-10% de clientes inactivos con bajo costo.";
+    } else if (prop_lower.indexOf("120") > -1 || prop_lower.indexOf("180") > -1) {
+      viable = false;
+      recommendation = "Requiere evaluación. Segmentos muy amplios tienden a reducir conversión por incluir contactos muy fríos.";
+      warnings.push("Testear primero con A/B: 90 días vs el segmento propuesto.");
+    } else if (prop_lower.indexOf("descuento") > -1 || prop_lower.indexOf("off") > -1 || prop_lower.indexOf("%") > -1) {
+      viable = true;
+      recommendation = "Viable. Verificar que el descuento respete los límites definidos en la estrategia de la marca.";
+      warnings.push("Revisar escala de descuentos antes de implementar.");
+    } else if (prop_lower.indexOf("sms") > -1) {
+      viable = true;
+      recommendation = "Viable si hay lista SMS activa. Verificar en Klaviyo → Lists → SMS subscribers.";
+    } else if (prop_lower.indexOf("flujo") > -1 || prop_lower.indexOf("flow") > -1 || prop_lower.indexOf("secuencia") > -1) {
+      viable = true;
+      recommendation = "Viable. Un flujo nuevo puede generar revenue incremental sin costo adicional por envío.";
+    } else if (prop_lower.indexOf("asunto") > -1 || prop_lower.indexOf("subject") > -1) {
+      viable = true;
+      recommendation = "Viable. A/B testear con 20% de la lista antes de enviar al segmento completo.";
+    } else {
+      viable = true;
+      recommendation = "Propuesta registrada. El dashboard la evaluará con datos reales el próximo lunes.";
+    }
+
+    var claudePrompt = "Eres experto en Klaviyo y email marketing DTC para marcas en USA.\n\n" +
+      "MARCA: " + brandNames[brand] + " (" + brandCategories[brand] + ")\n" +
+      "COMMUNITY MANAGER: Alicia Prieto\n\n" +
+      "PROPUESTA A IMPLEMENTAR: " + proposal + "\n\n" +
+      "Genera el paso a paso COMPLETO EN ESPAÑOL para implementar esta propuesta en Klaviyo. Incluye:\n" +
+      "1. Configuración exacta (dónde hacer clic, qué seleccionar)\n" +
+      "2. Segmento recomendado con filtros exactos\n" +
+      "3. Contenido sugerido (asunto, preheader, estructura del email)\n" +
+      "4. KPIs a monitorear en los primeros 30 días\n" +
+      "5. Criterios de éxito y cuándo escalar o descartar\n\n" +
+      "Sé muy específico. Alicia ejecutará esto directamente en Klaviyo.";
+
+    var color = viable ? "var(--ac)" : "var(--amb)";
+    var icon = viable ? "✅" : "⚠️";
+
+    html += "<div style=\"background:var(--s2);border:1px solid var(--b);border-radius:10px;padding:16px;margin-bottom:12px;border-left:4px solid " + color + "\">";
+    html += "<div style=\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:" + color + ";margin-bottom:6px\">" + icon + " " + (viable ? "Viable" : "Requiere evaluación") + "</div>";
+    html += "<div style=\"font-size:13px;font-weight:600;color:var(--tx);margin-bottom:8px\">" + proposal + "</div>";
+    html += "<div style=\"font-size:12px;color:var(--tx2);margin-bottom:10px\">" + recommendation + "</div>";
+    
+    warnings.forEach(function(w) {
+      html += "<div style=\"font-size:11px;color:var(--amb);background:var(--ambd);padding:6px 10px;border-radius:5px;margin-bottom:6px\">⚠ " + w + "</div>";
+    });
+
+    html += "<div style=\"margin-top:12px;border-top:1px solid var(--b);padding-top:12px\">";
+    html += "<div style=\"font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px\">Prompt para Claude</div>";
+    html += "<div style=\"background:var(--bg);border-radius:6px;padding:10px;font-size:11px;color:var(--tx2);line-height:1.6;max-height:100px;overflow-y:auto;font-family:monospace\">" + claudePrompt.substring(0, 250) + "...</div>";
+    html += "<button onclick=\"copyText(`" + claudePrompt.replace(/`/g, "'") + "`)\" style=\"margin-top:8px;padding:7px 14px;background:var(--acd);color:var(--ac);border:1px solid rgba(181,242,61,.2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif\">📋 Copiar prompt completo</button>";
+    html += "</div></div>";
+  });
+
+  var preview = document.getElementById("proposal-preview");
+  preview.innerHTML = html;
+  preview.style.display = "block";
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(function() {
+    alert("Prompt copiado. Pégalo en Claude para obtener el paso a paso completo.");
+  }).catch(function() {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    document.body.removeChild(ta);
+    alert("Prompt copiado. Pégalo en Claude para obtener el paso a paso completo.");
+  });
 }
 </script>
 </body>

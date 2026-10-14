@@ -106,6 +106,16 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
     </div>
   </div>
 
+
+  <hr class="divider">
+  <div class="section-title">💡 Propuestas de optimización</div>
+
+  <div class="field">
+    <label>¿Qué optimizaciones quieres proponer esta semana?</label>
+    <textarea id="proposals" placeholder="Escribe una propuesta por línea. Ejemplos:&#10;- Probar segmento Win-Back de 45 días&#10;- A/B testear asunto con nombre del producto&#10;- Activar canal SMS para reactivación&#10;- Nuevo flujo de upsell post-compra"></textarea>
+    <div class="hint">El dashboard evaluará cada propuesta contra los datos reales de Klaviyo y generará el prompt para ejecutarla en Claude.</div>
+  </div>
+
   <div class="field">
     <label>Notas adicionales (opcional)</label>
     <textarea id="extra" placeholder="Cualquier contexto que deba considerar el dashboard al generar recomendaciones." style="min-height:80px"></textarea>
@@ -204,6 +214,7 @@ function resetForm() {
   document.getElementById("strategy_notes").value = "";
   document.getElementById("alerts").value = "";
   document.getElementById("extra").value = "";
+  document.getElementById("proposals").value = "";
   document.querySelectorAll(".tag.sel").forEach(t => t.classList.remove("sel"));
   document.getElementById("msg").style.display = "none";
   document.getElementById("submit-btn").disabled = false;

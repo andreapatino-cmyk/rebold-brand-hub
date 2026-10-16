@@ -12,16 +12,21 @@ body{background:var(--bg);color:var(--tx);font-family:Inter,sans-serif;font-size
 .topbar{padding:16px 24px;border-bottom:1px solid var(--b);display:flex;align-items:center}
 .logo{font-family:"Space Grotesk",sans-serif;font-size:17px;font-weight:700;color:var(--ac)}
 .logo span{color:var(--tx3);font-weight:400;font-size:12px;margin-left:8px}
-.main{max-width:680px;margin:0 auto;padding:32px 24px}
+.main{max-width:720px;margin:0 auto;padding:32px 24px}
 h1{font-family:"Space Grotesk",sans-serif;font-size:22px;font-weight:700;margin-bottom:8px}
 .sub{color:var(--tx3);font-size:13px;margin-bottom:32px;line-height:1.6}
 .field{margin-bottom:20px}
-label{display:block;font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+label{display:block;font-size:11px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.source{display:block;font-size:11px;color:var(--tx3);margin-bottom:8px;padding:6px 10px;background:var(--s2);border-radius:5px;border-left:2px solid var(--b)}
+.source strong{color:var(--amb)}
 select,input,textarea{width:100%;background:var(--s1);border:1px solid var(--b);color:var(--tx);font-family:Inter,sans-serif;font-size:13px;padding:10px 14px;border-radius:8px;outline:none;transition:border .2s;-webkit-appearance:none}
 select:focus,input:focus,textarea:focus{border-color:var(--ac)}
 select option{background:var(--s1)}
-textarea{resize:vertical;min-height:120px;line-height:1.6}
+textarea{resize:vertical;min-height:100px;line-height:1.6}
 .hint{font-size:11px;color:var(--tx3);margin-top:6px;line-height:1.5}
+.num-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.num-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.num-field label{font-size:10px;margin-bottom:4px}
 .btn{width:100%;padding:13px;background:var(--ac);color:#0D0F0E;font-family:Inter,sans-serif;font-size:14px;font-weight:700;border:none;border-radius:8px;cursor:pointer;transition:all .2s;margin-top:8px}
 .btn:hover{background:#c8ff50}
 .btn:disabled{opacity:.5;cursor:not-allowed}
@@ -30,8 +35,9 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
 .msg{padding:14px 16px;border-radius:8px;font-size:13px;margin-top:16px;display:none;line-height:1.5}
 .msg.ok{background:var(--acd);border:1px solid rgba(181,242,61,.2);color:var(--ac)}
 .msg.err{background:var(--redd);border:1px solid rgba(255,77,77,.2);color:var(--red)}
-.divider{border:none;border-top:1px solid var(--b);margin:24px 0}
-.section-title{font-family:"Space Grotesk",sans-serif;font-size:14px;font-weight:600;margin-bottom:16px}
+.divider{border:none;border-top:1px solid var(--b);margin:28px 0}
+.section-title{font-family:"Space Grotesk",sans-serif;font-size:15px;font-weight:700;margin-bottom:4px;color:var(--tx)}
+.section-sub{font-size:12px;color:var(--tx3);margin-bottom:18px}
 .tag-grid{display:flex;flex-wrap:wrap;gap:8px}
 .tag{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;border:1px solid var(--b);background:var(--s2);color:var(--tx2);transition:all .2s;user-select:none}
 .tag:hover{border-color:var(--ac);color:var(--ac)}
@@ -54,6 +60,7 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
 .prop-prompt{background:var(--bg);border-radius:6px;padding:10px;font-size:11px;color:var(--tx2);line-height:1.6;max-height:100px;overflow-y:auto;font-family:monospace;margin-bottom:8px}
 .copy-btn{padding:7px 14px;background:var(--acd);color:var(--ac);border:1px solid rgba(181,242,61,.2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif}
 .copy-btn:hover{background:rgba(181,242,61,.2)}
+@media(max-width:600px){.num-grid,.num-grid-3{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -65,7 +72,7 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
 <div id="form-screen">
 <div class="main">
   <h1>Actualizar estrategia de marca</h1>
-  <p class="sub">Completa este formulario cada semana. El dashboard usará esta información para generar recomendaciones más precisas el próximo lunes.</p>
+  <p class="sub">Completa este formulario cada lunes antes de las 8am. El dashboard usa esta información para generar recomendaciones precisas y mostrar el estado real de la cuenta.</p>
 
   <div class="field">
     <label>Marca</label>
@@ -80,15 +87,107 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
 
   <div class="field">
     <label>Tu nombre</label>
-    <input type="text" id="author" placeholder="Ej: Andrea Prieto">
+    <input type="text" id="author" placeholder="Ej: Alicia Prieto">
   </div>
 
   <hr class="divider">
-  <div class="section-title">¿Qué pasó esta semana?</div>
+  <div class="section-title">📊 Entregabilidad</div>
+  <div class="section-sub">Klaviyo → Account → Deliverability (panel de salud de la cuenta)</div>
+
+  <div class="num-grid-3">
+    <div class="num-field field">
+      <label>Rebote %</label>
+      <div class="source"><strong>Dónde:</strong> Klaviyo → Account → Deliverability → Bounce rate</div>
+      <input type="number" step="0.01" id="bounce_rate" placeholder="Ej: 6.04">
+    </div>
+    <div class="num-field field">
+      <label>Puntaje Klaviyo</label>
+      <div class="source"><strong>Dónde:</strong> Klaviyo → Account → Deliverability → Account score</div>
+      <input type="number" step="1" id="klaviyo_score" placeholder="Ej: 60">
+    </div>
+    <div class="num-field field">
+      <label>Tasa de baja %</label>
+      <div class="source"><strong>Dónde:</strong> Klaviyo → Account → Deliverability → Unsubscribe rate</div>
+      <input type="number" step="0.01" id="unsub_rate" placeholder="Ej: 0.18">
+    </div>
+  </div>
+
+  <div class="num-grid">
+    <div class="num-field field">
+      <label>Spam rate %</label>
+      <div class="source"><strong>Dónde:</strong> Klaviyo → Account → Deliverability → Spam complaint rate</div>
+      <input type="number" step="0.001" id="spam_rate" placeholder="Ej: 0.08">
+    </div>
+    <div class="num-field field">
+      <label>Apertura real sin Apple Mail %</label>
+      <div class="source"><strong>Dónde:</strong> Klaviyo → Analytics → Benchmarks → Open rate (machine opens excluded)</div>
+      <input type="number" step="0.1" id="real_open_rate" placeholder="Ej: 28.5">
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div class="section-title">📱 Canal SMS</div>
+  <div class="section-sub">Klaviyo → Analytics → Overview → filtrar por SMS</div>
+
+  <div class="num-grid">
+    <div class="num-field field">
+      <label>Revenue SMS (últimos 7 días)</label>
+      <div class="source"><strong>Dónde:</strong> Klaviyo → Analytics → Overview → Canal: SMS → Revenue</div>
+      <input type="number" step="0.01" id="sms_revenue" placeholder="Ej: 1250.00">
+    </div>
+    <div class="num-field field">
+      <label>Destinatarios SMS</label>
+      <div class="source"><strong>Dónde:</strong> Klaviyo → Analytics → Overview → Canal: SMS → Recipients</div>
+      <input type="number" step="1" id="sms_recipients" placeholder="Ej: 890">
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div class="section-title">🛍️ Ventas de la tienda</div>
+  <div class="section-sub">Shopify → Analytics → Dashboards → últimos 7 días (no aplica para Beg &amp; Barker)</div>
+
+  <div class="num-grid-3">
+    <div class="num-field field">
+      <label>Ventas totales tienda (7 días)</label>
+      <div class="source"><strong>Dónde:</strong> Shopify → Analytics → Total sales</div>
+      <input type="number" step="0.01" id="shopify_revenue" placeholder="Ej: 45000.00">
+    </div>
+    <div class="num-field field">
+      <label>Número de órdenes</label>
+      <div class="source"><strong>Dónde:</strong> Shopify → Analytics → Orders</div>
+      <input type="number" step="1" id="shopify_orders" placeholder="Ej: 312">
+    </div>
+    <div class="num-field field">
+      <label>AOV (valor promedio de orden)</label>
+      <div class="source"><strong>Dónde:</strong> Shopify → Analytics → Average order value</div>
+      <input type="number" step="0.01" id="shopify_aov" placeholder="Ej: 144.23">
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div class="section-title">📈 Crecimiento de lista</div>
+  <div class="section-sub">Klaviyo → Audience → Lists → lista principal → Growth</div>
+
+  <div class="num-grid">
+    <div class="num-field field">
+      <label>Nuevos suscriptores (últimos 7 días)</label>
+      <div class="source"><strong>Dónde:</strong> Klaviyo → Audience → Lists → seleccionar lista principal → Members added this week</div>
+      <input type="number" step="1" id="new_subscribers" placeholder="Ej: 145">
+    </div>
+    <div class="num-field field">
+      <label>Total suscriptores activos</label>
+      <div class="source"><strong>Dónde:</strong> Klaviyo → Audience → Lists → seleccionar lista principal → Active profiles</div>
+      <input type="number" step="1" id="total_subscribers" placeholder="Ej: 12450">
+    </div>
+  </div>
+
+  <hr class="divider">
+  <div class="section-title">📋 Contexto semanal</div>
+  <div class="section-sub">Información adicional para que el dashboard entienda el contexto de esta semana</div>
 
   <div class="field">
     <label>Campañas destacadas</label>
-    <textarea id="campaigns_notes" placeholder="Ej: Labor Day Email 2 funcionó muy bien ($2,292). Win-Back Tramo 2 no convirtió."></textarea>
+    <textarea id="campaigns_notes" placeholder="Ej: Labor Day Email 2 funcionó muy bien ($2,292). Win-Back Tramo 2 no convirtió porque el botón no aplicaba el código BACK20."></textarea>
     <div class="hint">Qué funcionó, qué no, y por qué.</div>
   </div>
 
@@ -100,8 +199,7 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
 
   <div class="field">
     <label>Alertas o problemas activos</label>
-    <textarea id="alerts" placeholder="Ej: Rebote en 6.04% — prioridad máxima. Puntaje Klaviyo en 60."></textarea>
-    <div class="hint">Entregabilidad, segmentos con problemas, métricas preocupantes.</div>
+    <textarea id="alerts" placeholder="Ej: Destinatarios cayeron de 8,800 a 2,141 por envío en octubre. Revisar segmentos."></textarea>
   </div>
 
   <div class="field">
@@ -122,19 +220,16 @@ textarea{resize:vertical;min-height:120px;line-height:1.6}
 
   <hr class="divider">
   <div class="section-title">💡 Propuestas de optimización</div>
+  <div class="section-sub">Escribe ideas que quieras evaluar. El sistema las analizará y generará el prompt para Claude.</div>
 
   <div class="field">
-    <label>¿Qué optimizaciones quieres proponer?</label>
     <textarea id="proposals" placeholder="Una propuesta por línea. Ejemplos:&#10;Probar flujo Win-Back de 45 días&#10;A/B testear asunto con nombre del producto&#10;Activar canal SMS para reactivación"></textarea>
-    <div class="hint">El sistema evaluará cada propuesta y generará el prompt para ejecutarla en Claude.</div>
   </div>
 
   <button class="btn-sec" onclick="previewProposals()">🔍 Ver evaluación y prompt (sin guardar)</button>
   <div id="proposals-preview" style="display:none;margin-top:16px"></div>
 
-  <hr class="divider">
-
-  <div class="field">
+  <div class="field" style="margin-top:20px">
     <label>Notas adicionales (opcional)</label>
     <textarea id="extra" placeholder="Cualquier contexto adicional." style="min-height:80px"></textarea>
   </div>
@@ -170,6 +265,11 @@ function getSelectedTags() {
   return tags;
 }
 
+function getNum(id) {
+  var v = document.getElementById(id).value.trim();
+  return v ? parseFloat(v) : null;
+}
+
 function evaluateProposal(proposal, brand) {
   var p = proposal.toLowerCase();
   var viable = true;
@@ -178,30 +278,27 @@ function evaluateProposal(proposal, brand) {
 
   if (p.indexOf("win-back") > -1 || p.indexOf("winback") > -1 || p.indexOf("reactivac") > -1) {
     viable = true;
-    recommendation = "Viable. Un flujo Win-Back bien segmentado puede recuperar 5-10% de clientes inactivos con bajo costo de implementacion.";
+    recommendation = "Viable. Un flujo Win-Back bien segmentado puede recuperar 5-10% de clientes inactivos.";
   } else if (p.indexOf("120") > -1 || p.indexOf("180") > -1) {
     viable = false;
-    recommendation = "Requiere evaluacion. Segmentos muy amplios tienden a reducir la conversion por incluir contactos muy frios.";
-    warnings.push("Testear primero con A/B: 90 dias vs el segmento propuesto para comparar conversion real.");
+    recommendation = "Requiere evaluacion. Segmentos muy amplios tienden a reducir la conversion.";
+    warnings.push("Testear primero A/B: 90 dias vs el segmento propuesto.");
   } else if (p.indexOf("descuento") > -1 || p.indexOf("% off") > -1) {
     viable = true;
-    recommendation = "Viable. Verificar que el descuento respete los limites definidos en la estrategia de la marca.";
+    recommendation = "Viable. Verificar que respete los limites de descuento de la estrategia de la marca.";
     warnings.push("Revisar escala de descuentos aprobada antes de implementar.");
   } else if (p.indexOf("sms") > -1) {
     viable = true;
-    recommendation = "Viable si hay lista SMS activa. Verificar en Klaviyo - Lists - SMS subscribers.";
-  } else if (p.indexOf("flujo") > -1 || p.indexOf("flow") > -1 || p.indexOf("secuencia") > -1) {
+    recommendation = "Viable si hay lista SMS activa. Verificar en Klaviyo - Audience - Lists.";
+  } else if (p.indexOf("flujo") > -1 || p.indexOf("flow") > -1) {
     viable = true;
     recommendation = "Viable. Un flujo nuevo puede generar revenue incremental sin costo adicional por envio.";
-  } else if (p.indexOf("asunto") > -1 || p.indexOf("subject") > -1 || p.indexOf("a/b") > -1) {
+  } else if (p.indexOf("asunto") > -1 || p.indexOf("a/b") > -1) {
     viable = true;
     recommendation = "Viable. A/B testear con 20% de la lista antes de enviar al segmento completo.";
-  } else if (p.indexOf("segmento") > -1 || p.indexOf("segment") > -1) {
-    viable = true;
-    recommendation = "Viable. Definir los filtros exactos en Klaviyo antes de enviar para asegurar calidad del segmento.";
   } else {
     viable = true;
-    recommendation = "Propuesta registrada. El dashboard la evaluara con datos reales de Klaviyo el proximo lunes.";
+    recommendation = "Propuesta registrada. El dashboard la evaluara con datos reales de Klaviyo el proximo dia.";
   }
 
   var brandName = BRAND_NAMES[brand] || brand;
@@ -219,45 +316,29 @@ function evaluateProposal(proposal, brand) {
     "5. Criterios de exito y cuando escalar o descartar\n\n" +
     "Se muy especifico. Alicia ejecutara esto directamente en Klaviyo.";
 
-  return {
-    proposal: proposal,
-    viable: viable,
-    recommendation: recommendation,
-    warnings: warnings,
-    claudePrompt: claudePrompt
-  };
+  return { proposal: proposal, viable: viable, recommendation: recommendation, warnings: warnings, claudePrompt: claudePrompt };
 }
 
 function previewProposals() {
   var brand = document.getElementById("brand").value;
   var raw = document.getElementById("proposals").value.trim();
-
   if (!brand) { alert("Selecciona una marca primero."); return; }
   if (!raw) { alert("Escribe al menos una propuesta."); return; }
 
-  var proposals = raw.split("\n").map(function(l) {
-    return l.trim().replace(/^-\s*/, "");
-  }).filter(Boolean);
-
+  var proposals = raw.split("\n").map(function(l) { return l.trim().replace(/^-\s*/, ""); }).filter(Boolean);
   storedPrompts = [];
-  var html = "<div style=\"font-size:12px;color:var(--tx3);margin-bottom:12px\">Evaluacion preliminar basada en logica de la estrategia. Los datos reales de Klaviyo se usan el lunes.</div>";
+  var html = "<div style=\"font-size:12px;color:var(--tx3);margin-bottom:12px\">Evaluacion preliminar. Los datos reales de Klaviyo se incorporan en la siguiente actualizacion del dashboard.</div>";
 
   proposals.forEach(function(proposal, i) {
     var ev = evaluateProposal(proposal, brand);
     storedPrompts.push(ev.claudePrompt);
-
     var cardClass = ev.viable ? "prop-card viable" : "prop-card warn";
     var icon = ev.viable ? "✅ Viable" : "⚠️ Requiere evaluacion";
-
     html += "<div class=\"" + cardClass + "\">";
     html += "<div class=\"prop-label\">" + icon + "</div>";
     html += "<div class=\"prop-title\">" + ev.proposal + "</div>";
     html += "<div class=\"prop-rec\">" + ev.recommendation + "</div>";
-
-    ev.warnings.forEach(function(w) {
-      html += "<div class=\"prop-warn\">⚠ " + w + "</div>";
-    });
-
+    ev.warnings.forEach(function(w) { html += "<div class=\"prop-warn\">⚠ " + w + "</div>"; });
     html += "<div style=\"border-top:1px solid var(--b);padding-top:12px;margin-top:10px\">";
     html += "<div style=\"font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--tx3);margin-bottom:8px\">Prompt para Claude</div>";
     html += "<div class=\"prop-prompt\">" + ev.claudePrompt.substring(0, 280) + "...</div>";
@@ -289,13 +370,7 @@ function copyStoredPrompt(i) {
 function buildContent() {
   var brand = document.getElementById("brand").value;
   var author = document.getElementById("author").value.trim();
-  var campaigns = document.getElementById("campaigns_notes").value.trim();
-  var strategy = document.getElementById("strategy_notes").value.trim();
-  var alerts = document.getElementById("alerts").value.trim();
-  var proposals = document.getElementById("proposals").value.trim();
-  var extra = document.getElementById("extra").value.trim();
-  var priorities = getSelectedTags();
-  var date = new Date().toLocaleDateString("es", {day:"2-digit",month:"long",year:"numeric"});
+  var date = new Date().toLocaleDateString("es", {day:"2-digit", month:"long", year:"numeric"});
   var brandName = BRAND_NAMES[brand] || brand;
 
   var lines = [];
@@ -303,9 +378,69 @@ function buildContent() {
   if (author) lines.push("Actualizado por: " + author);
   lines.push("");
 
-  if (campaigns) { lines.push("## Campanas y aprendizajes recientes"); lines.push(campaigns); lines.push(""); }
-  if (strategy) { lines.push("## Restricciones y reglas de la marca"); lines.push(strategy); lines.push(""); }
-  if (alerts) { lines.push("## Alertas y problemas activos"); lines.push(alerts); lines.push(""); }
+  // Entregabilidad
+  var bounce = getNum("bounce_rate");
+  var score = getNum("klaviyo_score");
+  var unsub = getNum("unsub_rate");
+  var spam = getNum("spam_rate");
+  var realOpen = getNum("real_open_rate");
+
+  if (bounce !== null || score !== null || unsub !== null) {
+    lines.push("## Entregabilidad");
+    if (bounce !== null) lines.push("- Rebote: " + bounce + "%");
+    if (score !== null) lines.push("- Puntaje Klaviyo: " + score);
+    if (unsub !== null) lines.push("- Tasa de baja: " + unsub + "%");
+    if (spam !== null) lines.push("- Spam rate: " + spam + "%");
+    if (realOpen !== null) lines.push("- Apertura real sin Apple Mail: " + realOpen + "%");
+    lines.push("");
+  }
+
+  // SMS
+  var smsRev = getNum("sms_revenue");
+  var smsRec = getNum("sms_recipients");
+  if (smsRev !== null || smsRec !== null) {
+    lines.push("## Canal SMS");
+    if (smsRev !== null) lines.push("- Revenue SMS 7 dias: $" + smsRev);
+    if (smsRec !== null) {
+      lines.push("- Destinatarios SMS: " + smsRec);
+      if (smsRev !== null && smsRec > 0) lines.push("- RPR SMS: $" + (smsRev / smsRec).toFixed(2));
+    }
+    lines.push("");
+  }
+
+  // Shopify
+  var shopRev = getNum("shopify_revenue");
+  var shopOrd = getNum("shopify_orders");
+  var shopAOV = getNum("shopify_aov");
+  if (shopRev !== null || shopOrd !== null) {
+    lines.push("## Ventas tienda (Shopify)");
+    if (shopRev !== null) lines.push("- Ventas totales 7 dias: $" + shopRev);
+    if (shopOrd !== null) lines.push("- Ordenes: " + shopOrd);
+    if (shopAOV !== null) lines.push("- AOV: $" + shopAOV);
+    lines.push("");
+  }
+
+  // Crecimiento lista
+  var newSubs = getNum("new_subscribers");
+  var totalSubs = getNum("total_subscribers");
+  if (newSubs !== null || totalSubs !== null) {
+    lines.push("## Crecimiento de lista");
+    if (newSubs !== null) lines.push("- Nuevos suscriptores 7 dias: " + newSubs);
+    if (totalSubs !== null) lines.push("- Total activos: " + totalSubs);
+    lines.push("");
+  }
+
+  // Contexto
+  var campaigns = document.getElementById("campaigns_notes").value.trim();
+  var strategy = document.getElementById("strategy_notes").value.trim();
+  var alerts = document.getElementById("alerts").value.trim();
+  var proposals = document.getElementById("proposals").value.trim();
+  var extra = document.getElementById("extra").value.trim();
+  var priorities = getSelectedTags();
+
+  if (campaigns) { lines.push("## Campanas y aprendizajes"); lines.push(campaigns); lines.push(""); }
+  if (strategy) { lines.push("## Restricciones y reglas"); lines.push(strategy); lines.push(""); }
+  if (alerts) { lines.push("## Alertas activas"); lines.push(alerts); lines.push(""); }
 
   if (priorities.length > 0) {
     lines.push("## Prioridades esta semana");
@@ -334,14 +469,10 @@ function submitForm() {
   if (!brand) { showMsg("Selecciona una marca.", "err"); return; }
   if (!author) { showMsg("Ingresa tu nombre.", "err"); return; }
 
-  var c = document.getElementById("campaigns_notes").value.trim();
-  var s = document.getElementById("strategy_notes").value.trim();
-  var a = document.getElementById("alerts").value.trim();
-  var pr = document.getElementById("proposals").value.trim();
-  var ex = document.getElementById("extra").value.trim();
-
-  if (!c && !s && !a && !pr && !ex && getSelectedTags().length === 0) {
-    showMsg("Completa al menos un campo.", "err");
+  var content = buildContent();
+  var lines = content.split("\n").filter(function(l) { return l.trim() && !l.startsWith("#"); });
+  if (lines.length < 2) {
+    showMsg("Completa al menos un campo antes de guardar.", "err");
     return;
   }
 
@@ -352,13 +483,7 @@ function submitForm() {
   var payload = {
     brand: brand,
     author: author,
-    campaigns_notes: c,
-    strategy_notes: s,
-    alerts: a,
-    proposals: pr,
-    extra: ex,
-    priorities: getSelectedTags(),
-    content: buildContent()
+    content: content
   };
 
   fetch(N8N_WEBHOOK, {
@@ -370,13 +495,13 @@ function submitForm() {
       document.getElementById("form-screen").style.display = "none";
       document.getElementById("success-screen").style.display = "block";
       document.getElementById("success-msg").textContent =
-        "La estrategia de " + BRAND_NAMES[brand] + " quedo actualizada. El dashboard la usara el proximo lunes.";
+        "La estrategia de " + BRAND_NAMES[brand] + " quedo actualizada. El dashboard la usara en la proxima actualizacion.";
     } else {
       showMsg("Error al guardar. Intenta de nuevo. (" + res.status + ")", "err");
       btn.disabled = false;
       btn.textContent = "Guardar estrategia ->";
     }
-  }).catch(function(e) {
+  }).catch(function() {
     showMsg("Error de conexion. Verifica tu internet e intenta de nuevo.", "err");
     btn.disabled = false;
     btn.textContent = "Guardar estrategia ->";
@@ -386,7 +511,10 @@ function submitForm() {
 function resetForm() {
   document.getElementById("form-screen").style.display = "block";
   document.getElementById("success-screen").style.display = "none";
-  ["brand","author","campaigns_notes","strategy_notes","alerts","proposals","extra"].forEach(function(id) {
+  ["brand","author","campaigns_notes","strategy_notes","alerts","proposals","extra",
+   "bounce_rate","klaviyo_score","unsub_rate","spam_rate","real_open_rate",
+   "sms_revenue","sms_recipients","shopify_revenue","shopify_orders","shopify_aov",
+   "new_subscribers","total_subscribers"].forEach(function(id) {
     document.getElementById(id).value = "";
   });
   document.querySelectorAll(".tag.sel").forEach(function(t) { t.classList.remove("sel"); });

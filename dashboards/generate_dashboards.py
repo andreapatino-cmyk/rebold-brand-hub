@@ -577,19 +577,31 @@ def fetch_brand_data(brand_config):
             if fid not in flow_stats:
                 flow_stats[fid] = {
                     "conversion_value": 0,
-                    "recipients": 0,
+                    "conversion_uniques": 0,
+                    "recipients_max": 0,  # recipients del primer email (entrada al flujo)
                     "opens_unique": 0,
                     "clicks_unique": 0,
-                    "conversion_uniques": 0,
+                    "msg_count": 0,
                 }
-            # Acumular valores numericos
-            for k in ["conversion_value", "recipients", "opens_unique", "clicks_unique", "conversion_uniques"]:
-                flow_stats[fid][k] += float(stats.get(k) or 0)
-        # Calcular tasas correctas despues de acumular
+            s = flow_stats[fid]
+            s["msg_count"] += 1
+            # conversion_value: sumar todos los mensajes (cada conversion se atribuye a un mensaje)
+            s["conversion_value"] += float(stats.get("conversion_value") or 0)
+            s["conversion_uniques"] += float(stats.get("conversion_uniques") or 0)
+            # opens y clicks: acumular
+            s["opens_unique"] += float(stats.get("opens_unique") or 0)
+            s["clicks_unique"] += float(stats.get("clicks_unique") or 0)
+            # recipients: usar el maximo (primer email del flujo tiene mas recipients)
+            rec = float(stats.get("recipients") or 0)
+            if rec > s["recipients_max"]:
+                s["recipients_max"] = rec
+
+        # Calcular tasas usando recipients del primer email como base
         for fid, s in flow_stats.items():
-            rec = s["recipients"]
-            s["open_rate"] = s["opens_unique"] / rec if rec > 0 else 0
-            s["click_rate"] = s["clicks_unique"] / rec if rec > 0 else 0
+            rec = s["recipients_max"]
+            s["recipients"] = int(rec)
+            s["open_rate"] = s["opens_unique"] / (rec * s["msg_count"]) if rec > 0 and s["msg_count"] > 0 else 0
+            s["click_rate"] = s["clicks_unique"] / (rec * s["msg_count"]) if rec > 0 and s["msg_count"] > 0 else 0
             s["conv_rate"] = s["conversion_uniques"] / rec if rec > 0 else 0
             s["revenue_per_recipient"] = s["conversion_value"] / rec if rec > 0 else 0
 
@@ -643,15 +655,12 @@ def fetch_brand_data(brand_config):
         prev_flow_rev = sum(prev_flow_stats.values())
         print(f"  Periodo anterior: campanas ${prev_camp_rev:,.0f} | flujos ${prev_flow_rev:,.0f}")
 
-    # Detalle de emails por flow
+    # Detalle de emails por flow — reutilizar flow_results ya obtenidos (sin segunda llamada)
     flow_details = {}
     for f in flows:
-        fid = f["id"]
-        flow_details[fid] = []
-    # Obtener desglose por flow_message_id
+        flow_details[f["id"]] = []
     if conv_metric_id and flows:
-        detail_results = client.get_flow_values(conv_metric_id, start_str, end_str)
-        for result in detail_results:
+        for result in flow_results:
             groupings = result.get("groupings", {})
             stats = result.get("statistics", {})
             fid = groupings.get("flow_id", "")

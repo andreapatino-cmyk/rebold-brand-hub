@@ -19,7 +19,6 @@ BRANDS = {
         "conversion_metric_id": os.environ.get("GRANITE_METRIC_ID", "T3ZNfY"),
         "output_file": "granite_dashboard.html",
         "brand_key": "granite",
-        "shopify_domain": os.environ.get("GRANITE_SHOPIFY_DOMAIN", ""),
     },
     "ayoba": {
         "name": "Ayoba",
@@ -31,7 +30,6 @@ BRANDS = {
         "conversion_metric_id": os.environ.get("AYOBA_METRIC_ID", "Q8VsyA"),
         "output_file": "ayoba_dashboard.html",
         "brand_key": "ayoba",
-        "shopify_domain": os.environ.get("AYOBA_SHOPIFY_DOMAIN", ""),
     },
     "brooklyn": {
         "name": "Brooklyn Biltong",
@@ -43,7 +41,6 @@ BRANDS = {
         "conversion_metric_id": os.environ.get("BROOKLYN_METRIC_ID", "VDmt66"),
         "output_file": "brooklyn_dashboard.html",
         "brand_key": "brooklyn",
-        "shopify_domain": os.environ.get("BROOKLYN_SHOPIFY_DOMAIN", ""),
     },
     "beg": {
         "name": "Beg & Barker",
@@ -55,7 +52,6 @@ BRANDS = {
         "conversion_metric_id": os.environ.get("BEG_METRIC_ID", "SJAjCL"),
         "output_file": "beg_dashboard.html",
         "brand_key": "beg",
-        "shopify_domain": os.environ.get("BEG_SHOPIFY_DOMAIN", ""),
     },
 }
 
@@ -87,185 +83,7 @@ FLUJOS_POR_MARCA = {
 REVISION = "2025-01-15"
 BASE_URL = "https://a.klaviyo.com/api"
 
-# URL del MCP de Klaviyo (mismo que usa Claude en el chat)
-KLAVIYO_MCP_URL = "https://mcp.klaviyo.com/mcp"
 
-
-def fetch_extended_klaviyo_data(brand_name, api_key):
-    """
-    Usa Claude API + MCP de Klaviyo para leer datos que la API publica no expone:
-    - Entregabilidad: rebote, bajas, spam, puntaje
-    - Canal SMS: revenue, RPR
-    - Crecimiento de lista: altas por formulario
-    - Aperturas reales (sin Apple Mail)
-    """
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not anthropic_key:
-        print(f"  ANTHROPIC_API_KEY no configurada — saltando datos extendidos")
-        return {}
-
-    print(f"  Leyendo datos extendidos via Claude + MCP Klaviyo...")
-
-    prompt = f"""Estas conectado a la cuenta de Klaviyo de {brand_name} via MCP.
-Por favor lee y devuelve SOLO un JSON con estos datos de los ultimos 30 dias:
-
-{{
-  "deliverability": {{
-    "bounce_rate": <numero entre 0 y 1>,
-    "unsubscribe_rate": <numero entre 0 y 1>,
-    "spam_rate": <numero entre 0 y 1>,
-    "klaviyo_score": <numero entre 0 y 100>
-  }},
-  "sms": {{
-    "total_revenue": <numero>,
-    "recipients": <numero>,
-    "rpr": <numero>,
-    "campaigns_sent": <numero>
-  }},
-  "list_growth": {{
-    "new_subscribers_30d": <numero>,
-    "new_subscribers_prev_30d": <numero>,
-    "total_active": <numero>
-  }},
-  "real_open_rate": <numero entre 0 y 1, excluyendo Apple Mail>,
-  "campaign_segments": [
-    {{
-      "campaign_name": <nombre de la campana>,
-      "segment_name": <nombre del segmento o lista usado>,
-      "recipients": <numero de destinatarios>
-    }}
-  ]
-}}
-
-Incluye las ultimas 10 campanas en campaign_segments.
-Si un dato no esta disponible, usa null. Devuelve SOLO el JSON, sin texto adicional."""
-
-    try:
-        r = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": anthropic_key,
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 1000,
-                "messages": [{"role": "user", "content": prompt}],
-                "mcp_servers": [
-                    {
-                        "type": "url",
-                        "url": KLAVIYO_MCP_URL,
-                        "name": "klaviyo-mcp",
-                        "authorization_token": api_key,
-                    }
-                ],
-            },
-            timeout=60,
-        )
-
-        if r.ok:
-            content = r.json()
-            text = ""
-            for block in content.get("content", []):
-                if block.get("type") == "text":
-                    text += block.get("text", "")
-
-            # Limpiar y parsear JSON
-            text = text.strip()
-            if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-            text = text.strip()
-
-            data = json.loads(text)
-            print(f"  Datos extendidos OK: bounce={data.get('deliverability', {}).get('bounce_rate')}, score={data.get('deliverability', {}).get('klaviyo_score')}")
-            return data
-        else:
-            print(f"  Error Claude API {r.status_code}: {r.text[:200]}")
-            return {}
-
-    except Exception as e:
-        print(f"  Error datos extendidos: {e}")
-        return {}
-
-
-SHOPIFY_MCP_URL = "https://setup.shopify.com/mcp"
-
-
-def fetch_shopify_data(brand_name, shopify_domain):
-    """
-    Usa Claude API + MCP de Shopify para leer ventas totales de la tienda
-    y calcular el peso del canal email.
-    """
-    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    shopify_token = os.environ.get(f"{brand_name.upper().replace(' ', '_').replace('&', 'AND')}_SHOPIFY_TOKEN", "")
-
-    if not anthropic_key or not shopify_domain:
-        return {}
-
-    print(f"  Leyendo datos Shopify via Claude + MCP...")
-
-    prompt = f"""Estas conectado a la tienda Shopify de {brand_name} ({shopify_domain}) via MCP.
-Por favor lee y devuelve SOLO un JSON con los datos de los ultimos 30 dias:
-
-{{
-  "total_store_revenue": <ingresos totales de la tienda en USD>,
-  "total_orders": <numero de ordenes>,
-  "avg_order_value": <valor promedio de orden>,
-  "top_products": [
-    {{"name": <nombre>, "revenue": <numero>, "units": <numero>}}
-  ]
-}}
-
-Incluye los top 5 productos por revenue.
-Si un dato no esta disponible, usa null. Devuelve SOLO el JSON, sin texto adicional."""
-
-    try:
-        r = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            headers={
-                "x-api-key": anthropic_key,
-                "anthropic-version": "2023-06-01",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "claude-haiku-4-5-20251001",
-                "max_tokens": 1000,
-                "messages": [{"role": "user", "content": prompt}],
-                "mcp_servers": [
-                    {
-                        "type": "url",
-                        "url": SHOPIFY_MCP_URL,
-                        "name": "shopify-mcp",
-                    }
-                ],
-            },
-            timeout=60,
-        )
-
-        if r.ok:
-            content = r.json()
-            text = ""
-            for block in content.get("content", []):
-                if block.get("type") == "text":
-                    text += block.get("text", "")
-            text = text.strip()
-            if text.startswith("```"):
-                text = text.split("```")[1]
-                if text.startswith("json"):
-                    text = text[4:]
-            text = text.strip()
-            data = json.loads(text)
-            print(f"  Shopify OK: total=${data.get('total_store_revenue', 0):,.0f}")
-            return data
-        else:
-            print(f"  Error Shopify {r.status_code}: {r.text[:200]}")
-            return {}
-    except Exception as e:
-        print(f"  Error Shopify: {e}")
-        return {}
 
 
 class KlaviyoClient:
@@ -364,6 +182,99 @@ def read_brand_strategy(brand_key):
     except Exception:
         pass
     return ""
+
+
+def parse_strategy_health_data(strategy_text):
+    """
+    Parsea datos numericos del archivo de estrategia reportados por Alicia.
+    Extrae entregabilidad, SMS, Shopify y crecimiento de lista.
+    """
+    if not strategy_text:
+        return {}
+
+    data = {
+        "deliverability": {},
+        "sms": {},
+        "shopify": {},
+        "list_growth": {},
+        "updated_by": "",
+        "updated_date": "",
+    }
+
+    import re
+
+    lines = strategy_text.split("\n")
+    current_section = ""
+
+    for line in lines:
+        line = line.strip()
+
+        # Detectar quien actualizó
+        if line.startswith("Actualizado por:"):
+            data["updated_by"] = line.replace("Actualizado por:", "").strip()
+
+        # Detectar fecha
+        if "Actualizado el" in line:
+            match = re.search(r"Actualizado el (.+)", line)
+            if match:
+                data["updated_date"] = match.group(1).strip()
+
+        # Detectar sección
+        if line.startswith("## "):
+            section = line.lower().replace("## ", "")
+            if "entregabilidad" in section:
+                current_section = "deliverability"
+            elif "sms" in section:
+                current_section = "sms"
+            elif "shopify" in section or "tienda" in section or "ventas" in section:
+                current_section = "shopify"
+            elif "crecimiento" in section or "lista" in section:
+                current_section = "list_growth"
+            else:
+                current_section = "other"
+
+        # Parsear valores numéricos
+        if line.startswith("- ") and ":" in line:
+            key_val = line[2:].split(":", 1)
+            if len(key_val) == 2:
+                key = key_val[0].strip().lower()
+                val_str = key_val[1].strip().replace("$", "").replace("%", "").replace(",", "").strip()
+                try:
+                    val = float(val_str)
+                    if current_section == "deliverability":
+                        if "rebote" in key:
+                            data["deliverability"]["bounce_rate"] = val
+                        elif "puntaje" in key or "score" in key:
+                            data["deliverability"]["klaviyo_score"] = val
+                        elif "baja" in key or "unsub" in key:
+                            data["deliverability"]["unsub_rate"] = val
+                        elif "spam" in key:
+                            data["deliverability"]["spam_rate"] = val
+                        elif "apertura real" in key or "apple" in key:
+                            data["deliverability"]["real_open_rate"] = val
+                    elif current_section == "sms":
+                        if "revenue" in key:
+                            data["sms"]["revenue"] = val
+                        elif "destinatarios" in key or "recipients" in key:
+                            data["sms"]["recipients"] = val
+                        elif "rpr" in key:
+                            data["sms"]["rpr"] = val
+                    elif current_section == "shopify":
+                        if "ventas" in key or "total" in key:
+                            data["shopify"]["total_revenue"] = val
+                        elif "ordenes" in key or "orders" in key:
+                            data["shopify"]["orders"] = val
+                        elif "aov" in key or "promedio" in key:
+                            data["shopify"]["aov"] = val
+                    elif current_section == "list_growth":
+                        if "nuevos" in key or "new" in key:
+                            data["list_growth"]["new_subscribers"] = val
+                        elif "total" in key or "activos" in key:
+                            data["list_growth"]["total_active"] = val
+                except ValueError:
+                    pass
+
+    return data
 
 
 def generate_optimizations(brand_name, category, campaigns, flows, brand_key=""):
@@ -756,13 +667,13 @@ def fetch_brand_data(brand_config):
                     "rpr": float(stats.get("revenue_per_recipient") or 0),
                 })
 
-    # Datos extendidos via Claude + MCP Klaviyo
-    extended = fetch_extended_klaviyo_data(brand_config["name"], brand_config["api_key"])
-
-    # Datos de Shopify via Claude + MCP Shopify
+    extended = {}
     shopify_data = {}
-    if brand_config.get("shopify_domain"):
-        shopify_data = fetch_shopify_data(brand_config["name"], brand_config["shopify_domain"])
+
+    # Leer datos de salud reportados por Alicia desde el archivo de estrategia
+    strategy_raw = read_brand_strategy(brand_config["brand_key"])
+    health_data = parse_strategy_health_data(strategy_raw)
+    print(f"  Health data: bounce={health_data.get('deliverability', {}).get('bounce_rate')}, score={health_data.get('deliverability', {}).get('klaviyo_score')}")
 
     print(f"  Generando optimizaciones...")
     strategy = read_brand_strategy(brand_config["brand_key"])
@@ -814,6 +725,7 @@ def fetch_brand_data(brand_config):
         "generated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
         "extended": extended,
         "shopify": shopify_data,
+        "health": health_data,
     }
 
 
@@ -835,6 +747,7 @@ def generate_html(data):
     prev_kpis_json = json.dumps(data.get("prev_kpis", {}), ensure_ascii=False)
     extended_json = json.dumps(data.get("extended", {}), ensure_ascii=False)
     shopify_json = json.dumps(data.get("shopify", {}), ensure_ascii=False)
+    health_json = json.dumps(data.get("health", {}), ensure_ascii=False)
 
     p = []
     p.append('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8">')
@@ -931,6 +844,7 @@ def generate_html(data):
     p.append(f'var PREV_KPIS={prev_kpis_json};')
     p.append(f'var EXTENDED={extended_json};')
     p.append(f'var SHOPIFY={shopify_json};')
+    p.append(f'var HEALTH={health_json};')
     p.append('''
 var df=null,dt=null,optTxt="",fluTxt="",selFlu="";
 function fmt8(d){return d.toISOString().split("T")[0]}
@@ -948,23 +862,29 @@ function showT(id,el){
 }
 function renderSalud(){
   var el=document.getElementById("t-salud");
-  var d=EXTENDED.deliverability||{};
-  var sms=EXTENDED.sms||{};
-  var lg=EXTENDED.list_growth||{};
-  var realOr=EXTENDED.real_open_rate;
-  var noData=Object.keys(EXTENDED).length===0;
+  var d=HEALTH.deliverability||{};
+  var sms=HEALTH.sms||{};
+  var lg=HEALTH.list_growth||{};
+  var shopify=HEALTH.shopify||{};
+  var realOr=d.real_open_rate||null;
+  var updatedBy=HEALTH.updated_by||"";
+  var updatedDate=HEALTH.updated_date||"";
+  var noData=Object.keys(d).length===0&&Object.keys(sms).length===0&&Object.keys(lg).length===0;
 
   if(noData){
-    el.innerHTML="<div style=\\"margin-top:18px;padding:40px;text-align:center;color:var(--tx3)\\"><div style=\\"font-size:32px;margin-bottom:12px\\">📊</div><div style=\\"font-size:15px;font-weight:600;color:var(--tx);margin-bottom:8px\\">Datos de salud no disponibles</div><div style=\\"font-size:13px\\">Requiere ANTHROPIC_API_KEY configurada para leer datos extendidos de Klaviyo.</div></div>";
+    el.innerHTML="<div style=\\"margin-top:18px;padding:40px;text-align:center;color:var(--tx3)\\"><div style=\\"font-size:32px;margin-bottom:12px\\">📊</div><div style=\\"font-size:15px;font-weight:600;color:var(--tx);margin-bottom:8px\\">Sin datos de salud esta semana</div><div style=\\"font-size:13px\\">Alicia debe completar el <a href=\\"strategy_update.html\\" style=\\"color:var(--ac)\\">formulario de estrategia semanal</a> con los datos de entregabilidad, SMS y tienda.</div></div>";
     return;
+  }
+
+  var html="<div style=\\"margin-top:18px\\">";
+  if(updatedBy||updatedDate){
+    html+="<div style=\\"font-size:11px;color:var(--tx3);margin-bottom:14px;padding:8px 12px;background:var(--s2);border-radius:6px;border:1px solid var(--b)\\">Reportado por <strong style=\\"color:var(--tx)\\">"+updatedBy+"</strong>"+(updatedDate?" el "+updatedDate:"")+" · <a href=\\"strategy_update.html\\" style=\\"color:var(--ac)\\">Actualizar datos</a></div>";
   }
 
   var score=d.klaviyo_score;
   var scoreColor=score>=80?"var(--ac)":score>=60?"var(--amb)":"var(--red)";
-  var bounceColor=(d.bounce_rate||0)>0.04?"var(--red)":(d.bounce_rate||0)>0.02?"var(--amb)":"var(--ac)";
-  var unsubColor=(d.unsubscribe_rate||0)>0.003?"var(--red)":(d.unsubscribe_rate||0)>0.001?"var(--amb)":"var(--ac)";
-
-  var html="<div style=\\"margin-top:18px\\">";
+  var bounceColor=(d.bounce_rate||0)>4?"var(--red)":(d.bounce_rate||0)>2?"var(--amb)":"var(--ac)";
+  var unsubColor=(d.unsub_rate||0)>0.3?"var(--red)":(d.unsub_rate||0)>0.1?"var(--amb)":"var(--ac)";
 
   // Puntaje Klaviyo
   if(score!=null){
@@ -976,57 +896,42 @@ function renderSalud(){
 
   // Grid de entregabilidad
   html+="<div style=\\"display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px\\">";
-  html+="<div class=\\"kc r\\"><div class=\\"kl\\">Tasa de rebote</div><div class=\\"kv\\" style=\\"color:"+bounceColor+"\\">"+((d.bounce_rate||0)*100).toFixed(2)+"%</div><div class=\\"ks\\">Objetivo <2%</div></div>";
-  html+="<div class=\\"kc a\\"><div class=\\"kl\\">Tasa de baja</div><div class=\\"kv\\" style=\\"color:"+unsubColor+"\\">"+((d.unsubscribe_rate||0)*100).toFixed(3)+"%</div><div class=\\"ks\\">Objetivo <0.3%</div></div>";
-  html+="<div class=\\"kc a\\"><div class=\\"kl\\">Spam rate</div><div class=\\"kv\\">"+((d.spam_rate||0)*100).toFixed(3)+"%</div><div class=\\"ks\\">Objetivo <0.08%</div></div>";
-  html+="<div class=\\"kc g\\"><div class=\\"kl\\">Apertura real</div><div class=\\"kv\\">"+( realOr!=null?((realOr||0)*100).toFixed(1)+"%":"N/D")+"</div><div class=\\"ks\\">Sin Apple Mail</div></div>";
+  html+="<div class=\\"kc r\\"><div class=\\"kl\\">Tasa de rebote</div><div class=\\"kv\\" style=\\"color:"+bounceColor+"\\">"+((d.bounce_rate||0)).toFixed(2)+"%</div><div class=\\"ks\\">Objetivo <2%</div></div>";
+  html+="<div class=\\"kc a\\"><div class=\\"kl\\">Tasa de baja</div><div class=\\"kv\\" style=\\"color:"+unsubColor+"\\">"+((d.unsub_rate||0)).toFixed(3)+"%</div><div class=\\"ks\\">Objetivo <0.3%</div></div>";
+  html+="<div class=\\"kc a\\"><div class=\\"kl\\">Spam rate</div><div class=\\"kv\\">"+((d.spam_rate||0)).toFixed(3)+"%</div><div class=\\"ks\\">Objetivo <0.08%</div></div>";
+  html+="<div class=\\"kc g\\"><div class=\\"kl\\">Apertura real</div><div class=\\"kv\\">"+(realOr!=null?(realOr).toFixed(1)+"%":"N/D")+"</div><div class=\\"ks\\">Sin Apple Mail</div></div>";
   html+="</div>";
 
   // SMS
-  if(sms.total_revenue!=null||sms.recipients!=null){
+  if(sms.revenue!=null||sms.recipients!=null){
+    var smsRpr=sms.rpr||(sms.revenue&&sms.recipients?sms.revenue/sms.recipients:0);
     html+="<div class=\\"card\\" style=\\"margin-bottom:14px\\"><div class=\\"ch\\"><div class=\\"ct\\">Canal SMS</div></div><div class=\\"cb\\">";
-    html+="<div style=\\"display:grid;grid-template-columns:repeat(4,1fr);gap:12px\\">";
-    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Revenue SMS</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+fmtU(sms.total_revenue||0)+"</div></div>";
+    html+="<div style=\\"display:grid;grid-template-columns:repeat(3,1fr);gap:12px\\">";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Revenue SMS (7 dias)</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+fmtU(sms.revenue||0)+"</div></div>";
     html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Destinatarios</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(sms.recipients||0).toLocaleString()+"</div></div>";
-    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">RPR SMS</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700;color:var(--ac)\\">"+fmtU(sms.rpr||0)+"</div></div>";
-    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Campanas enviadas</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(sms.campaigns_sent||0)+"</div></div>";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">RPR SMS</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700;color:var(--ac)\\">"+fmtU(smsRpr)+"</div></div>";
     html+="</div></div></div>";
   }
 
   // Crecimiento de lista
-  if(lg.new_subscribers_30d!=null){
-    var growthDelta=lg.new_subscribers_prev_30d>0?((lg.new_subscribers_30d-lg.new_subscribers_prev_30d)/lg.new_subscribers_prev_30d*100):0;
-    var growthColor=growthDelta>=0?"var(--ac)":"var(--red)";
-    html+="<div class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">Crecimiento de lista</div></div><div class=\\"cb\\">";
-    html+="<div style=\\"display:grid;grid-template-columns:repeat(3,1fr);gap:12px\\">";
-    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Altas ultimos 30 dias</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(lg.new_subscribers_30d||0).toLocaleString()+"<span style=\\"font-size:13px;color:"+growthColor+"\\"> "+(growthDelta>=0?"+":"")+growthDelta.toFixed(1)+"%</span></div></div>";
-    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Altas periodo anterior</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(lg.new_subscribers_prev_30d||0).toLocaleString()+"</div></div>";
+  if(lg.new_subscribers!=null||lg.total_active!=null){
+    html+="<div class=\\"card\\" style=\\"margin-bottom:14px\\"><div class=\\"ch\\"><div class=\\"ct\\">Crecimiento de lista</div></div><div class=\\"cb\\">";
+    html+="<div style=\\"display:grid;grid-template-columns:1fr 1fr;gap:12px\\">";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Nuevos suscriptores (7 dias)</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700;color:var(--ac)\\">"+(lg.new_subscribers||0).toLocaleString()+"</div></div>";
     html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Total activos</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(lg.total_active||0).toLocaleString()+"</div></div>";
     html+="</div></div></div>";
   }
 
-  // Shopify — ventas totales y peso del email
-  if(SHOPIFY.total_store_revenue!=null){
-    var emailRev=(PREV_KPIS.total_revenue||0)+(EXTENDED.sms&&EXTENDED.sms.total_revenue||0);
-    var emailShare=SHOPIFY.total_store_revenue>0?(totalRev/SHOPIFY.total_store_revenue*100):0;
-    html+="<div class=\\"card\\" style=\\"margin-bottom:14px\\"><div class=\\"ch\\"><div class=\\"ct\\">Ventas totales tienda vs email</div></div><div class=\\"cb\\">";
-    html+="<div style=\\"display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px\\">";
-    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Ventas totales tienda</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+fmtU(SHOPIFY.total_store_revenue)+"</div></div>";
+  // Shopify — ventas totales y peso del email (datos de Alicia)
+  if(shopify.total_revenue!=null){
+    var emailShare=shopify.total_revenue>0?(totalRev/shopify.total_revenue*100):0;
+    html+="<div class=\\"card\\" style=\\"margin-bottom:14px\\"><div class=\\"ch\\"><div class=\\"ct\\">Ventas tienda vs email (7 dias)</div></div><div class=\\"cb\\">";
+    html+="<div style=\\"display:grid;grid-template-columns:repeat(4,1fr);gap:12px\\">";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Ventas totales tienda</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+fmtU(shopify.total_revenue)+"</div></div>";
     html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Revenue email</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700;color:var(--ac)\\">"+fmtU(totalRev)+"</div></div>";
     html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Peso del email</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700;color:var(--ac)\\">"+emailShare.toFixed(1)+"%</div></div>";
-    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Ordenes totales</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(SHOPIFY.total_orders||0).toLocaleString()+"</div></div>";
-    html+="</div>";
-    if(SHOPIFY.top_products&&SHOPIFY.top_products.length){
-      html+="<div style=\\"font-size:11px;font-weight:600;color:var(--tx3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px\\">Top productos</div>";
-      html+="<table style=\\"width:100%;border-collapse:collapse\\">";
-      SHOPIFY.top_products.forEach(function(p,i){
-        html+="<tr style=\\"border-bottom:1px solid var(--b)\\"><td style=\\"padding:7px 0;font-size:12px;color:var(--tx)\\">"+(i+1)+". "+p.name+"</td>";
-        html+="<td style=\\"padding:7px 0;font-size:12px;font-weight:600;color:var(--tx);text-align:right\\">"+fmtU(p.revenue)+"</td>";
-        html+="<td style=\\"padding:7px 0;font-size:12px;color:var(--tx3);text-align:right\\">"+(p.units||0)+" uds</td></tr>";
-      });
-      html+="</table>";
-    }
-    html+="</div></div>";
+    html+="<div><div style=\\"font-size:10px;color:var(--tx3)\\">Ordenes</div><div style=\\"font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700\\">"+(shopify.orders||0).toLocaleString()+"</div></div>";
+    html+="</div></div></div>";
   }
 
   // Audiencia por envio
@@ -1040,7 +945,7 @@ function renderSalud(){
     html+="</tbody></table></div>";
   }
 
-  html+="<div style=\\"margin-top:12px;font-size:11px;color:var(--tx3)\\">Datos leidos via Claude + MCP Klaviyo/Shopify · "+GENERATED+"</div>";
+  html+="<div style=\\"margin-top:12px;padding:10px 12px;background:var(--s2);border-radius:6px;font-size:11px;color:var(--tx3)\\">Datos reportados por Alicia via formulario de estrategia · Dashboard actualizado: "+GENERATED+" · <a href=\\"strategy_update.html\\" style=\\"color:var(--ac)\\">Actualizar datos</a></div>";
   html+="</div>";
   el.innerHTML=html;
 }

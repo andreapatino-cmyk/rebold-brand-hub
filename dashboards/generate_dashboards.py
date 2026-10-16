@@ -1032,8 +1032,12 @@ function updLabel(){
 }
 function fCamps(){
   return ALL_CAMPS.filter(function(c){
-    if(!c.date)return true;
-    var d=new Date(c.date);return(!df||d>=df)&&(!dt||d<=dt);
+    if(!c.date){
+      // Sin fecha: incluir solo si no hay filtro activo
+      return !df && !dt;
+    }
+    var d=new Date(c.date);
+    return(!df||d>=df)&&(!dt||d<=dt);
   });
 }
 function render(){

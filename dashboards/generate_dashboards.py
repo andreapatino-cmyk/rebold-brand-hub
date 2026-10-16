@@ -563,66 +563,80 @@ def fetch_brand_data(brand_config):
 
     flows_raw = client.get_flows()
     print(f"  Flujos: {len(flows_raw)}")
-    flows = []
-    if conv_metric_id and flows_raw:
-        flow_results = client.get_flow_values(conv_metric_id, start_str, end_str)
-        # Acumular stats por flow_id (puede haber multiples mensajes por flujo)
-        flow_stats = {}
+
+    def process_flow_results(flow_results, flows_raw_list):
+        """Convierte resultados del flow report en lista de flows con stats acumuladas"""
+        fstats = {}
         for result in flow_results:
             groupings = result.get("groupings", {})
             stats = result.get("statistics", {})
             fid = groupings.get("flow_id", "")
             if not fid:
                 continue
-            if fid not in flow_stats:
-                flow_stats[fid] = {
-                    "conversion_value": 0,
-                    "conversion_uniques": 0,
-                    "recipients_max": 0,  # recipients del primer email (entrada al flujo)
-                    "opens_unique": 0,
-                    "clicks_unique": 0,
-                    "msg_count": 0,
-                }
-            s = flow_stats[fid]
+            if fid not in fstats:
+                fstats[fid] = {"conversion_value": 0, "conversion_uniques": 0,
+                               "recipients_max": 0, "opens_unique": 0,
+                               "clicks_unique": 0, "msg_count": 0}
+            s = fstats[fid]
             s["msg_count"] += 1
-            # conversion_value: sumar todos los mensajes (cada conversion se atribuye a un mensaje)
             s["conversion_value"] += float(stats.get("conversion_value") or 0)
             s["conversion_uniques"] += float(stats.get("conversion_uniques") or 0)
-            # opens y clicks: acumular
             s["opens_unique"] += float(stats.get("opens_unique") or 0)
             s["clicks_unique"] += float(stats.get("clicks_unique") or 0)
-            # recipients: usar el maximo (primer email del flujo tiene mas recipients)
             rec = float(stats.get("recipients") or 0)
             if rec > s["recipients_max"]:
                 s["recipients_max"] = rec
-
-        # Calcular tasas usando recipients del primer email como base
-        for fid, s in flow_stats.items():
+        for fid, s in fstats.items():
             rec = s["recipients_max"]
             s["recipients"] = int(rec)
-            s["open_rate"] = s["opens_unique"] / (rec * s["msg_count"]) if rec > 0 and s["msg_count"] > 0 else 0
-            s["click_rate"] = s["clicks_unique"] / (rec * s["msg_count"]) if rec > 0 and s["msg_count"] > 0 else 0
+            mc = max(s["msg_count"], 1)
+            s["open_rate"] = s["opens_unique"] / (rec * mc) if rec > 0 else 0
+            s["click_rate"] = s["clicks_unique"] / (rec * mc) if rec > 0 else 0
             s["conv_rate"] = s["conversion_uniques"] / rec if rec > 0 else 0
             s["revenue_per_recipient"] = s["conversion_value"] / rec if rec > 0 else 0
-
-        for f in flows_raw[:15]:
+        result_flows = []
+        for f in flows_raw_list[:15]:
             fid = f.get("id", "")
             attrs = f.get("attributes", {})
-            stats = flow_stats.get(fid, {})
-            flows.append({
+            s = fstats.get(fid, {})
+            result_flows.append({
                 "id": fid,
                 "name": attrs.get("name", ""),
                 "trigger": attrs.get("trigger_type", ""),
                 "status": attrs.get("status", ""),
-                "open_rate": float(stats.get("open_rate") or 0),
-                "click_rate": float(stats.get("click_rate") or 0),
-                "conv_rate": float(stats.get("conv_rate") or 0),
-                "conv_value": float(stats.get("conversion_value") or 0),
-                "rpr": float(stats.get("revenue_per_recipient") or 0),
-                "recipients": int(stats.get("recipients") or 0),
+                "open_rate": float(s.get("open_rate") or 0),
+                "click_rate": float(s.get("click_rate") or 0),
+                "conv_rate": float(s.get("conv_rate") or 0),
+                "conv_value": float(s.get("conversion_value") or 0),
+                "rpr": float(s.get("revenue_per_recipient") or 0),
+                "recipients": int(s.get("recipients") or 0),
             })
-        total_flow_rev_check = sum(f["conv_value"] for f in flows)
-        print(f"  Revenue flujos: ${total_flow_rev_check:,.0f}")
+        return result_flows, flow_results
+
+    flows = []
+    flows_7d = []
+    flows_30d = []
+    flow_results = []
+
+    if conv_metric_id and flows_raw:
+        # 91 dias (periodo completo)
+        fr_91 = client.get_flow_values(conv_metric_id, start_str, end_str)
+        flows, flow_results = process_flow_results(fr_91, flows_raw)
+
+        # 30 dias
+        start_30 = end - timedelta(days=31)
+        fr_30 = client.get_flow_values(conv_metric_id, start_30.strftime("%Y-%m-%dT00:00:00+00:00"), end_str)
+        flows_30d, _ = process_flow_results(fr_30, flows_raw)
+
+        # 7 dias
+        start_7 = end - timedelta(days=8)
+        fr_7 = client.get_flow_values(conv_metric_id, start_7.strftime("%Y-%m-%dT00:00:00+00:00"), end_str)
+        flows_7d, _ = process_flow_results(fr_7, flows_raw)
+
+        print(f"  Revenue flujos 91d: ${sum(f['conv_value'] for f in flows):,.0f} | 30d: ${sum(f['conv_value'] for f in flows_30d):,.0f} | 7d: ${sum(f['conv_value'] for f in flows_7d):,.0f}")
+
+
+
 
     sent = [c for c in campaigns if c.get("recipients", 0) > 0]
     total_camp_rev = sum(c["conv_value"] for c in sent)
@@ -735,6 +749,8 @@ def fetch_brand_data(brand_config):
         "extended": extended,
         "shopify": shopify_data,
         "health": health_data,
+        "flows_7d": flows_7d,
+        "flows_30d": flows_30d,
     }
 
 
@@ -749,6 +765,8 @@ def generate_html(data):
     generated_at = data["generated_at"]
     campaigns_json = json.dumps(data["campaigns"], ensure_ascii=False)
     flows_json = json.dumps(data["flows"], ensure_ascii=False)
+    flows_7d_json = json.dumps(data.get("flows_7d", []), ensure_ascii=False)
+    flows_30d_json = json.dumps(data.get("flows_30d", []), ensure_ascii=False)
     flow_details_json = json.dumps(data.get("flow_details", {}), ensure_ascii=False)
     flujos_json = json.dumps(FLUJOS_POR_MARCA.get(brand_key, []), ensure_ascii=False)
     optimizations_json = json.dumps(data.get("optimizations", ""), ensure_ascii=False)
@@ -844,6 +862,8 @@ def generate_html(data):
     p.append('<script>')
     p.append(f'var ALL_CAMPS={campaigns_json};')
     p.append(f'var ALL_FLOWS={flows_json};')
+    p.append(f'var FLOWS_7D={flows_7d_json};')
+    p.append(f'var FLOWS_30D={flows_30d_json};')
     p.append(f'var FLOW_DETAILS={flow_details_json};')
     p.append(f'var FLUJOS={flujos_json};')
     p.append(f'var BRAND_NAME="{name}";')
@@ -1040,11 +1060,19 @@ function fCamps(){
     return(!df||d>=df)&&(!dt||d<=dt);
   });
 }
+function getFlows(){
+  if(!df||!dt) return ALL_FLOWS;
+  var diffDays=Math.round((dt-df)/(1000*60*60*24));
+  if(diffDays<=8) return FLOWS_7D;
+  if(diffDays<=31) return FLOWS_30D;
+  return ALL_FLOWS;
+}
 function render(){
   var camps=fCamps();
   var wd=camps.filter(function(c){return c.recipients>0});
+  var curFlows=getFlows();
   var campRev=wd.reduce(function(s,c){return s+c.conv_value},0);
-  var flowRev=ALL_FLOWS.reduce(function(s,f){return s+f.conv_value},0);
+  var flowRev=curFlows.reduce(function(s,f){return s+f.conv_value},0);
   var totalRev=campRev+flowRev;
   var avgOr=wd.length?wd.reduce(function(s,c){return s+c.open_rate},0)/wd.length:0;
   var avgCr=wd.length?wd.reduce(function(s,c){return s+c.click_rate},0)/wd.length:0;
@@ -1094,7 +1122,7 @@ function render(){
     "<div class=\\"kc a\\"><div class=\\"kl\\">Clics promedio</div><div class=\\"kv\\">"+fmtP(avgCr)+fmtDelta(avgCr,prevCr)+"</div><div class=\\"ks\\">Periodo anterior: "+fmtP(prevCr)+"</div></div>"+
     "<div class=\\"kc b\\"><div class=\\"kl\\">Conversion</div><div class=\\"kv\\">"+fmtP(avgCvr)+"</div><div class=\\"ks\\">"+wd.length+" campanas con datos</div></div>"+
     "</div>"+
-    "<div class=\\"ins\\"><strong>Resumen:</strong> Revenue: <strong>"+fmtU(totalRev)+"</strong> "+fmtDelta(totalRev,prevRev)+" | Apertura: <strong>"+fmtP(avgOr)+"</strong> | "+wd.length+" campanas y "+ALL_FLOWS.length+" flujos.</div>"+
+    "<div class=\\"ins\\"><strong>Resumen:</strong> Revenue: <strong>"+fmtU(totalRev)+"</strong> "+fmtDelta(totalRev,prevRev)+" | Apertura: <strong>"+fmtP(avgOr)+"</strong> | "+wd.length+" campanas y "+curFlows.length+" flujos.</div>"+
     "<div class=\\"two\\">"+
     "<div class=\\"card\\"><div class=\\"ch\\"><div class=\\"ct\\">Campanas</div><div style=\\"font-size:11px;color:var(--tx3)\\">"+camps.length+" campanas</div></div>"+
     "<table class=\\"tbl\\"><thead><tr><th>Campana</th><th>Apertura</th><th>Clics</th><th>Revenue</th><th>RPR</th></tr></thead><tbody>"+campsHTML+"</tbody></table></div>"+
@@ -1102,7 +1130,7 @@ function render(){
 
   // Tab flujos con detalle por email
   var fHTML="";
-  ALL_FLOWS.forEach(function(f){
+  curFlows.forEach(function(f){
     var details=FLOW_DETAILS[f.id]||[];
     var hasDetails=details.length>1;
     fHTML+="<tr style=\\"cursor:"+(hasDetails?"pointer":"default")+"\\""+(hasDetails?" onclick=\\"toggleFlowDetail('"+f.id+"')\\"":"")+"><td><div class=\\"cn\\">"+f.name+(hasDetails?" <span style=\\"font-size:10px;color:var(--tx3)\\">▸ "+details.length+" emails</span>":"")+"</div><div style=\\"font-size:10px;color:var(--tx3)\\">"+f.trigger+"</div></td>";

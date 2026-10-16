@@ -1028,7 +1028,7 @@ function copyPrompt(idx){
 }
 function initD(){
   var today=new Date();var from=new Date(today);from.setDate(from.getDate()-30);
-  dt=today;df=from;
+  dt=today;df=from;activePeriod=30;
   document.getElementById("dt").value=fmt8(today);
   document.getElementById("df").value=fmt8(from);
   updLabel();
@@ -1036,9 +1036,9 @@ function initD(){
 function sq(n,btn){
   document.querySelectorAll(".qb").forEach(function(b){b.classList.remove("active")});btn.classList.add("active");
   var today=new Date();var from=new Date(today);
-  if(n==="mes"){from=new Date(today.getFullYear(),today.getMonth(),1);}
-  else if(n==="lastmes"){from=new Date(today.getFullYear(),today.getMonth()-1,1);dt=new Date(today.getFullYear(),today.getMonth(),0);document.getElementById("dt").value=fmt8(dt);}
-  else{from.setDate(from.getDate()-n);dt=today;document.getElementById("dt").value=fmt8(today);}
+  if(n==="mes"){from=new Date(today.getFullYear(),today.getMonth(),1);activePeriod=30;}
+  else if(n==="lastmes"){from=new Date(today.getFullYear(),today.getMonth()-1,1);dt=new Date(today.getFullYear(),today.getMonth(),0);document.getElementById("dt").value=fmt8(dt);activePeriod=30;}
+  else{from.setDate(from.getDate()-n);dt=today;document.getElementById("dt").value=fmt8(today);activePeriod=n;}
   df=from;document.getElementById("df").value=fmt8(from);updLabel();render();
 }
 function applyD(){
@@ -1060,11 +1060,10 @@ function fCamps(){
     return(!df||d>=df)&&(!dt||d<=dt);
   });
 }
+var activePeriod=90;
 function getFlows(){
-  if(!df||!dt) return ALL_FLOWS;
-  var diffDays=Math.round((dt-df)/(1000*60*60*24));
-  if(diffDays<=8) return FLOWS_7D;
-  if(diffDays<=31) return FLOWS_30D;
+  if(activePeriod<=7) return FLOWS_7D;
+  if(activePeriod<=30) return FLOWS_30D;
   return ALL_FLOWS;
 }
 function render(){

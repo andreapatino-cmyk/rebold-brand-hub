@@ -102,12 +102,20 @@ class KlaviyoClient:
             return {}
         return r.json()
 
-    def post(self, endpoint, body):
-        r = requests.post(f"{BASE_URL}/{endpoint}", headers=self.headers, json=body, timeout=30)
-        if not r.ok:
-            print(f"  POST {endpoint} {r.status_code}: {r.text[:200]}")
-            return {}
-        return r.json()
+    def post(self, endpoint, body, retries=3):
+        for attempt in range(retries):
+            r = requests.post(f"{BASE_URL}/{endpoint}", headers=self.headers, json=body, timeout=30)
+            if r.status_code == 429:
+                wait = 60 * (attempt + 1)
+                print(f"  429 throttled — esperando {wait}s antes de reintentar...")
+                time.sleep(wait)
+                continue
+            if not r.ok:
+                print(f"  POST {endpoint} {r.status_code}: {r.text[:200]}")
+                return {}
+            return r.json()
+        print(f"  POST {endpoint} fallido tras {retries} intentos")
+        return {}
 
     def get_conversion_metric_id(self):
         data = self.get("metrics/")
@@ -623,13 +631,11 @@ def fetch_brand_data(brand_config):
         # 91 dias (periodo completo)
         fr_91 = client.get_flow_values(conv_metric_id, start_str, end_str)
         flows, flow_results = process_flow_results(fr_91, flows_raw)
-        time.sleep(15)
 
         # 30 dias
         start_30 = end - timedelta(days=31)
         fr_30 = client.get_flow_values(conv_metric_id, start_30.strftime("%Y-%m-%dT00:00:00+00:00"), end_str)
         flows_30d, _ = process_flow_results(fr_30, flows_raw)
-        time.sleep(15)
 
         # 7 dias
         start_7 = end - timedelta(days=8)
@@ -654,7 +660,6 @@ def fetch_brand_data(brand_config):
     prev_avg_open = 0
     prev_avg_click = 0
     if conv_metric_id:
-        time.sleep(15)
         print(f"  Leyendo periodo anterior...")
         prev_results = client.get_campaign_values(conv_metric_id, prev_start_str, prev_end_str)
         prev_sent = [r for r in prev_results if float(r.get("statistics", {}).get("recipients") or 0) > 0]

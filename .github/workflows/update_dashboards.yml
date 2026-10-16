@@ -2,7 +2,7 @@ name: Rebold — Actualizar Dashboards Email
 
 on:
   schedule:
-    - cron: '0 13 * * *'
+    - cron: '0 15 * * *'
   workflow_dispatch:
 
 permissions:
@@ -40,11 +40,7 @@ jobs:
           BEG_API_KEY: ${{ secrets.BEG_API_KEY }}
           BEG_METRIC_ID: ${{ secrets.BEG_METRIC_ID }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GRANITE_SHOPIFY_DOMAIN: ${{ secrets.GRANITE_SHOPIFY_DOMAIN }}
-          AYOBA_SHOPIFY_DOMAIN: ${{ secrets.AYOBA_SHOPIFY_DOMAIN }}
-          BROOKLYN_SHOPIFY_DOMAIN: ${{ secrets.BROOKLYN_SHOPIFY_DOMAIN }}
-          BEG_SHOPIFY_DOMAIN: ${{ secrets.BEG_SHOPIFY_DOMAIN }}
+
           OUTPUT_DIR: output
         run: |
           cd dashboards

@@ -287,9 +287,12 @@ def parse_strategy_health_data(strategy_text):
 
 
 def generate_optimizations(brand_name, category, campaigns, flows, brand_key=""):
-    use_camps = [c for c in campaigns if c.get("open_rate", 0) > 0 or c.get("recipients", 0) > 0]
+    # Usar solo los ultimos 7 dias para optimizaciones semanales
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    recent_camps = [c for c in campaigns if c.get("date") and datetime.strptime(c["date"], "%Y-%m-%d") >= cutoff]
+    use_camps = [c for c in recent_camps if c.get("open_rate", 0) > 0 or c.get("recipients", 0) > 0]
     if not use_camps:
-        use_camps = campaigns
+        use_camps = recent_camps if recent_camps else campaigns
     if not use_camps:
         return "Sin datos de campanas para analizar en este periodo."
 
@@ -310,7 +313,7 @@ def generate_optimizations(brand_name, category, campaigns, flows, brand_key="")
 
     lines = []
     lines.append(f"ANALISIS DE EMAIL MARKETING — {brand_name.upper()}")
-    lines.append(f"Generado: {date} | Periodo: ultimos 90 dias")
+    lines.append(f"Generado: {date} | Periodo: ultimos 7 dias")
     lines.append("=" * 60)
 
     lines.append("\n1. DIAGNOSTICO RAPIDO")
